@@ -80,7 +80,11 @@ export default function Sidebar() {
         <Link href="/settings" style={styles.singleMenuItem}>Setting</Link>
       </nav>
 
-      <button onClick={() => router.push('/login')} style={styles.logoutBtn}>Logout</button>
+      <button onClick={async () => {
+        await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+        localStorage.clear();
+        window.location.href = '/login';
+      }} style={styles.logoutBtn}>Logout</button>
     </div>
   )
 }

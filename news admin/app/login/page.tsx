@@ -5,13 +5,46 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
   const router = useRouter()
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    router.push('/dashboard')
+    console.log('Login button clicked')
+    console.log('Email:', email, 'Password:', password)
+    setError('')
+    setLoading(true)
+
+    try {
+      console.log('Sending request to /api/auth/login')
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+        credentials: 'include'
+      })
+
+      console.log('Response status:', res.status)
+      const data = await res.json()
+      console.log('Response data:', data)
+
+      if (!res.ok) {
+        setError(data.error || 'Invalid email or password')
+        setLoading(false)
+        return
+      }
+
+      localStorage.setItem('user', JSON.stringify(data.user))
+      console.log('Login successful, redirecting...')
+      window.location.href = '/dashboard'
+    } catch (err) {
+      console.error('Login error:', err)
+      setError('Login failed. Please try again.')
+      setLoading(false)
+    }
   }
 
   return (
@@ -26,13 +59,16 @@ export default function LoginPage() {
         />
         
         <form onSubmit={handleLogin} style={styles.form}>
+          {error && <div style={styles.error}>{error}</div>}
+          
           <div style={styles.inputGroup}>
-            <label style={styles.label}>Username</label>
+            <label style={styles.label}>Email</label>
             <input
-              type="text"
-              placeholder="Enter your username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              type="email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
               style={styles.input}
             />
           </div>
@@ -44,14 +80,15 @@ export default function LoginPage() {
               placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              required
               style={styles.input}
             />
           </div>
 
           <a href="#" style={styles.forgotPassword}>Forgot Password?</a>
 
-          <button type="submit" style={styles.loginButton}>
-            Login
+          <button type="submit" style={styles.loginButton} disabled={loading}>
+            {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
       </div>
@@ -140,5 +177,13 @@ const styles = {
     fontSize: '14px',
     color: '#333',
     textDecoration: 'none',
+  },
+  error: {
+    backgroundColor: '#fee',
+    color: '#c33',
+    padding: '12px',
+    borderRadius: '8px',
+    fontSize: '14px',
+    textAlign: 'center' as const,
   },
 }
