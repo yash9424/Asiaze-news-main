@@ -29,6 +29,74 @@ export default function UsersPage() {
     setSelected(selected.includes(id) ? selected.filter(s => s !== id) : [...selected, id])
   }
 
+  const toggleSelectAll = () => {
+    setSelected(selected.length === users.length ? [] : users.map(u => u._id))
+  }
+
+  const handleBlock = async () => {
+    if (selected.length === 0) return alert('Please select users to block')
+    for (const id of selected) {
+      await fetch(`/api/users/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: false })
+      })
+    }
+    setSelected([])
+    fetchUsers()
+  }
+
+  const handleUnblock = async () => {
+    if (selected.length === 0) return alert('Please select users to unblock')
+    for (const id of selected) {
+      await fetch(`/api/users/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: true })
+      })
+    }
+    setSelected([])
+    fetchUsers()
+  }
+
+  const handleDelete = async () => {
+    if (selected.length === 0) return alert('Please select users to delete')
+    if (!confirm('Are you sure you want to delete selected users?')) return
+    for (const id of selected) {
+      await fetch(`/api/users/${id}`, { method: 'DELETE' })
+    }
+    setSelected([])
+    fetchUsers()
+  }
+
+  const handleExport = () => {
+    const csv = ['Name,Email,Role,Status,Date Registered']
+    users.forEach(u => {
+      csv.push(`${u.name},${u.email},${u.role},${u.isActive ? 'Active' : 'Inactive'},${new Date(u.createdAt).toLocaleDateString()}`)
+    })
+    const blob = new Blob([csv.join('\n')], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'users.csv'
+    a.click()
+  }
+
+  const toggleUserStatus = async (id: string, currentStatus: boolean) => {
+    await fetch(`/api/users/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isActive: !currentStatus })
+    })
+    fetchUsers()
+  }
+
+  const deleteUser = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this user?')) return
+    await fetch(`/api/users/${id}`, { method: 'DELETE' })
+    fetchUsers()
+  }
+
   if (loading) {
     return (
       <div className={styles.container}>
@@ -65,11 +133,18 @@ export default function UsersPage() {
           </select>
         </div>
 
+        <div className={styles.bulkActions}>
+          <button className={styles.blockBtn} onClick={handleBlock}>Block Users</button>
+          <button className={styles.unblockBtn} onClick={handleUnblock}>Unblock Users</button>
+          <button className={styles.deleteBtn} onClick={handleDelete}>Delete Users</button>
+          <button className={styles.exportBtn} onClick={handleExport}>USER EXPORT</button>
+        </div>
+
         <div className={styles.content}>
           <table className={styles.table}>
             <thead>
               <tr>
-                <th><input type="checkbox" /></th>
+                <th><input type="checkbox" checked={selected.length === users.length && users.length > 0} onChange={toggleSelectAll} /></th>
                 <th>Name</th>
                 <th>Email/Phone</th>
                 <th>Role</th>
@@ -101,23 +176,16 @@ export default function UsersPage() {
                     </td>
                     <td>{new Date(user.createdAt).toLocaleDateString()}</td>
                     <td>
-                      <button className={styles.iconBtn}>👁</button>
-                      <button className={styles.iconBtn} onClick={() => window.location.href = `/users/edit/${user._id}`}>✏️</button>
-                      <button className={styles.iconBtn}>🔒</button>
-                      <button className={styles.iconBtn}>🗑️</button>
+                      <button className={styles.iconBtn} title="View">👁</button>
+                      <button className={styles.iconBtn} onClick={() => window.location.href = `/users/edit/${user._id}`} title="Edit">✏️</button>
+                      <button className={styles.iconBtn} onClick={() => toggleUserStatus(user._id, user.isActive)} title={user.isActive ? 'Block' : 'Unblock'}>🔒</button>
+                      <button className={styles.iconBtn} onClick={() => deleteUser(user._id)} title="Delete">🗑️</button>
                     </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
-        </div>
-
-        <div className={styles.bulkActions}>
-          <button className={styles.blockBtn}>Block Users</button>
-          <button className={styles.unblockBtn}>Unblock Users</button>
-          <button className={styles.deleteBtn}>Delete Users</button>
-          <button className={styles.exportBtn}>USER EXPORT</button>
         </div>
       </div>
     </div>
