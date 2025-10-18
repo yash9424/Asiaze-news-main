@@ -7,13 +7,42 @@ import { Eye } from "lucide-react";
 const SignUp = () => {
   const navigate = useNavigate();
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [emailOrPhone, setEmailOrPhone] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSignUp = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/verify");
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await fetch('http://localhost:3000/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          email: emailOrPhone,
+          password,
+          role: 'user'
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Sign up failed');
+        setLoading(false);
+        return;
+      }
+
+      navigate("/login");
+    } catch (err) {
+      setError('Sign up failed. Please try again.');
+      setLoading(false);
+    }
   };
 
   return (
@@ -24,18 +53,25 @@ const SignUp = () => {
         </div>
 
         <form onSubmit={handleSignUp} className="space-y-3 sm:space-y-4">
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded-full text-center text-sm">
+              {error}
+            </div>
+          )}
           <Input
             type="text"
             placeholder="Full Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            required
             className="h-12 sm:h-14 rounded-full px-4 sm:px-6 bg-white border-border text-sm sm:text-base"
           />
           <Input
             type="text"
             placeholder="Email or Phone"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={emailOrPhone}
+            onChange={(e) => setEmailOrPhone(e.target.value)}
+            required
             className="h-12 sm:h-14 rounded-full px-4 sm:px-6 bg-white border-border text-sm sm:text-base"
           />
           <div className="relative">
@@ -44,19 +80,21 @@ const SignUp = () => {
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              required
               className="h-12 sm:h-14 rounded-full px-4 sm:px-6 pr-12 bg-white border-border text-sm sm:text-base"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
               className="absolute right-4 top-1/2 -translate-y-1/2"
             >
               <Eye className="w-5 h-5 text-muted-foreground" />
             </button>
           </div>
 
-          <Button type="submit" className="w-full h-12 sm:h-14 text-base sm:text-lg font-semibold rounded-full">
-            Sign Up
+          <Button type="submit" disabled={loading} className="w-full h-12 sm:h-14 text-base sm:text-lg font-semibold rounded-full">
+            {loading ? 'Signing Up...' : 'Sign Up'}
           </Button>
         </form>
 
