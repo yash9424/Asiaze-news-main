@@ -1,20 +1,58 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Sidebar from '@/components/Sidebar'
 import { useRouter } from 'next/navigation'
 import styles from './page.module.css'
 
 export default function EditUserPage({ params }: any) {
   const router = useRouter()
+  const [userId, setUserId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
-    name: 'John Smith',
-    email: 'john.smith@example.com',
-    phone: '1234567890',
-    role: 'User',
-    status: true,
-    dateRegistered: '2021-07-16'
+    name: '',
+    email: '',
+    phone: '',
+    role: 'user',
+    isActive: true,
+    dateRegistered: ''
   })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const initParams = async () => {
+      const resolvedParams = await params
+      setUserId(resolvedParams.id)
+    }
+    initParams()
+  }, [params])
+
+  useEffect(() => {
+    if (!userId) return
+
+    const fetchUser = async () => {
+      try {
+        const res = await fetch(`/api/users/${userId}`)
+        const data = await res.json()
+        
+        if (res.ok && data.user) {
+          setFormData({
+            name: data.user.name || '',
+            email: data.user.email || '',
+            phone: data.user.phone || '',
+            role: data.user.role || 'user',
+            isActive: data.user.isActive !== false,
+            dateRegistered: data.user.createdAt ? new Date(data.user.createdAt).toISOString().split('T')[0] : ''
+          })
+        }
+      } catch (error) {
+        console.error('Failed to fetch user:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchUser()
+  }, [userId])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -22,12 +60,45 @@ export default function EditUserPage({ params }: any) {
   }
 
   const handleToggle = () => {
-    setFormData(prev => ({ ...prev, status: !prev.status }))
+    setFormData(prev => ({ ...prev, isActive: !prev.isActive }))
   }
 
-  const handleSave = () => {
-    console.log('Save:', formData)
-    router.push('/users')
+  const handleSave = async () => {
+    if (!userId) return
+
+    try {
+      const res = await fetch(`/api/users/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          role: formData.role,
+          isActive: formData.isActive
+        })
+      })
+
+      if (res.ok) {
+        alert('User updated successfully!')
+        router.push('/users')
+      } else {
+        alert('Failed to update user')
+      }
+    } catch (error) {
+      console.error('Error updating user:', error)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className={styles.container}>
+        <Sidebar />
+        <div className={styles.main}>
+          <h1 className={styles.title}>Loading...</h1>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -81,16 +152,16 @@ export default function EditUserPage({ params }: any) {
                 onChange={handleChange}
                 className={styles.select}
               >
-                <option>User</option>
-                <option>Admin</option>
-                <option>Moderator</option>
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+                <option value="editor">Editor</option>
               </select>
             </div>
 
             <div className={styles.formGroup}>
               <label className={styles.label}>Status</label>
               <div 
-                className={`${styles.toggle} ${formData.status ? styles.toggleActive : ''}`}
+                className={`${styles.toggle} ${formData.isActive ? styles.toggleActive : ''}`}
                 onClick={handleToggle}
               >
                 <div className={styles.toggleCircle}></div>
