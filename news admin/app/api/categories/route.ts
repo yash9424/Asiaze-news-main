@@ -16,9 +16,12 @@ export async function POST(req: NextRequest) {
   try {
     await dbConnect();
     const data = await req.json();
+    console.log('Creating category with data:', data);
     const category = await Category.create(data);
+    console.log('Created category:', category);
     return NextResponse.json({ category }, { status: 201 });
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to create category' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error creating category:', error);
+    return NextResponse.json({ error: error.message || 'Failed to create category' }, { status: 500 });
   }
 }

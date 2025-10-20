@@ -1,50 +1,137 @@
 'use client'
 
 import Sidebar from '@/components/Sidebar'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import styles from './page.module.css'
 
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState([
-    { id: 1, name: 'Politics', labels: { english: 'Politics', hindi: 'राजनीति', bengali: 'রাজনীতি' }, status: 'Active', visible: true },
-    { id: 2, name: 'Sports', labels: { english: 'Sports', hindi: 'खेल', bengali: 'ক্রীড়া' }, status: 'Inactive', visible: true },
-    { id: 3, name: 'Business', labels: { english: 'Business', hindi: 'व्यापार', bengali: 'ব্যবসা' }, status: 'Active', visible: true }
-  ])
+  const [categories, setCategories] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [formData, setFormData] = useState({ name: '', english: '', hindi: '', bengali: '', status: 'Active' })
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [formData, setFormData] = useState({ name: '', labels: { english: '', hindi: '', bengali: '' }, isActive: true })
 
-  const toggleVisibility = (id: number) => {
-    setCategories(categories.map(cat => cat.id === id ? { ...cat, visible: !cat.visible } : cat))
+  useEffect(() => {
+    fetchCategories()
+  }, [])
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/categories')
+      const data = await res.json()
+      setCategories(data.categories || [])
+      setLoading(false)
+    } catch (error) {
+      console.error('Failed to fetch categories:', error)
+      setLoading(false)
+    }
+  }
+
+  const toggleVisibility = async (id: string, currentStatus: boolean) => {
+    try {
+      const res = await fetch(`/api/categories/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !currentStatus })
+      })
+      if (res.ok) {
+        fetchCategories()
+      }
+    } catch (error) {
+      alert('Failed to update visibility')
+    }
   }
 
   const handleEdit = (cat: any) => {
-    setEditingId(cat.id)
-    setFormData({ name: cat.name, english: cat.labels.english, hindi: cat.labels.hindi, bengali: cat.labels.bengali, status: cat.status })
+    setEditingId(cat._id)
+    setFormData({ 
+      name: cat.name, 
+      labels: cat.labels || { english: '', hindi: '', bengali: '' }, 
+      isActive: cat.isActive 
+    })
     setShowModal(true)
   }
 
-  const handleSubmit = () => {
-    if (editingId) {
-      setCategories(categories.map(cat => cat.id === editingId ? {
-        ...cat,
-        name: formData.name,
-        labels: { english: formData.english, hindi: formData.hindi, bengali: formData.bengali },
-        status: formData.status
-      } : cat))
-    } else {
-      const newCategory = {
-        id: categories.length + 1,
-        name: formData.name,
-        labels: { english: formData.english, hindi: formData.hindi, bengali: formData.bengali },
-        status: formData.status,
-        visible: true
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this category?')) return
+    try {
+      const res = await fetch(`/api/categories/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        alert('Category deleted successfully!')
+        fetchCategories()
       }
-      setCategories([...categories, newCategory])
+    } catch (error) {
+      alert('Failed to delete category')
     }
-    setShowModal(false)
-    setEditingId(null)
-    setFormData({ name: '', english: '', hindi: '', bengali: '', status: 'Active' })
+  }
+
+  const handleSubmit = async () => {
+    if (!formData.name) return alert('Category name is required')
+    if (!formData.labels.english) return alert('English label is required')
+    
+    const slug = formData.name.toLowerCase().replace(/\s+/g, '-')
+    const payload = { 
+      name: formData.name,
+      slug,
+      description: formData.labels.english,
+      labels: {
+        english: formData.labels.english,
+        hindi: formData.labels.hindi,
+        bengali: formData.labels.bengali
+      },
+      isActive: formData.isActive,
+      updatedAt: new Date()
+    }
+
+    console.log('Sending payload:', payload)
+
+    try {
+      if (editingId) {
+        const res = await fetch(`/api/categories/${editingId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        const result = await res.json()
+        console.log('Update result:', result)
+        if (res.ok) {
+          alert('Category updated successfully!')
+        } else {
+          alert('Error: ' + (result.error || 'Failed to update'))
+        }
+      } else {
+        const res = await fetch('/api/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        const result = await res.json()
+        console.log('Create result:', result)
+        if (res.ok) {
+          alert('Category created successfully!')
+        } else {
+          alert('Error: ' + (result.error || 'Failed to create'))
+        }
+      }
+      setShowModal(false)
+      setEditingId(null)
+      setFormData({ name: '', labels: { english: '', hindi: '', bengali: '' }, isActive: true })
+      fetchCategories()
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Failed to save category: ' + error)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className={styles.container}>
+        <Sidebar />
+        <div className={styles.main}>
+          <div style={{ textAlign: 'center', padding: '50px' }}>Loading categories...</div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -53,7 +140,7 @@ export default function CategoriesPage() {
       <div className={styles.main}>
         <div className={styles.header}>
           <h1 className={styles.title}>Manage Categories</h1>
-          <button className={styles.addBtn} onClick={() => setShowModal(true)}>+ Add Category</button>
+          <button className={styles.addBtn} onClick={() => { setShowModal(true); setEditingId(null); setFormData({ name: '', labels: { english: '', hindi: '', bengali: '' }, isActive: true }); }}>+ Add Category</button>
         </div>
 
         <div className={styles.content}>
@@ -68,57 +155,72 @@ export default function CategoriesPage() {
               </tr>
             </thead>
             <tbody>
-              {categories.map(cat => (
-                <tr key={cat.id}>
-                  <td>{cat.name}</td>
-                  <td>English: {cat.labels.english}, Hindi: {cat.labels.hindi}, Bengali: {cat.labels.bengali}</td>
-                  <td>
-                    <span className={cat.status === 'Active' ? styles.statusActive : styles.statusInactive}>
-                      {cat.status}
-                    </span>
-                  </td>
-                  <td>
-                    <label className={styles.toggle}>
-                      <input type="checkbox" checked={cat.visible} onChange={() => toggleVisibility(cat.id)} />
-                      <span className={styles.slider}></span>
-                    </label>
-                  </td>
-                  <td>
-                    <button className={styles.iconBtn} onClick={() => handleEdit(cat)}>✏️</button>
-                    <button className={styles.iconBtn}>🗑️</button>
-                  </td>
+              {categories.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: '20px' }}>No categories found</td>
                 </tr>
-              ))}
+              ) : (
+                categories.map(cat => (
+                  <tr key={cat._id}>
+                    <td>{cat.name}</td>
+                    <td>
+                      {cat.labels ? (
+                        <>
+                          <strong>EN:</strong> {cat.labels.english || 'N/A'}, 
+                          <strong>HI:</strong> {cat.labels.hindi || 'N/A'}, 
+                          <strong>BN:</strong> {cat.labels.bengali || 'N/A'}
+                        </>
+                      ) : 'N/A'}
+                    </td>
+                    <td>
+                      <span className={cat.isActive ? styles.statusActive : styles.statusInactive}>
+                        {cat.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td>
+                      <label className={styles.toggle}>
+                        <input type="checkbox" checked={cat.isActive} onChange={() => toggleVisibility(cat._id, cat.isActive)} />
+                        <span className={styles.slider}></span>
+                      </label>
+                    </td>
+                    <td>
+                      <button className={styles.iconBtn} onClick={() => handleEdit(cat)} title="Edit">✏️</button>
+                      <button className={styles.iconBtn} onClick={() => handleDelete(cat._id)} title="Delete">🗑️</button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
         {showModal && (
-          <div className={styles.modal}>
-            <div className={styles.modalContent}>
+          <div className={styles.modal} onClick={() => setShowModal(false)}>
+            <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
               <h2 className={styles.modalTitle}>{editingId ? 'Edit Category' : 'Add New Category'}</h2>
               <div className={styles.formGroup}>
-                <label>Category Name</label>
-                <input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+                <label>Category Name *</label>
+                <input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="e.g., Politics, Sports" />
               </div>
               <div className={styles.formGroup}>
-                <label>English Label</label>
-                <input value={formData.english} onChange={(e) => setFormData({...formData, english: e.target.value})} />
-              </div>
-              <div className={styles.formGroup}>
-                <label>Hindi Label</label>
-                <input value={formData.hindi} onChange={(e) => setFormData({...formData, hindi: e.target.value})} />
-              </div>
-              <div className={styles.formGroup}>
-                <label>Bengali Label</label>
-                <input value={formData.bengali} onChange={(e) => setFormData({...formData, bengali: e.target.value})} />
-              </div>
-              <div className={styles.formGroup}>
-                <label>Status</label>
-                <select value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
-                  <option>Active</option>
-                  <option>Inactive</option>
-                </select>
+                <label>Language Labels *</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <input 
+                    value={formData.labels.english} 
+                    onChange={(e) => setFormData({...formData, labels: {...formData.labels, english: e.target.value}})} 
+                    placeholder="English: Politics" 
+                  />
+                  <input 
+                    value={formData.labels.hindi} 
+                    onChange={(e) => setFormData({...formData, labels: {...formData.labels, hindi: e.target.value}})} 
+                    placeholder="Hindi: राजनीति" 
+                  />
+                  <input 
+                    value={formData.labels.bengali} 
+                    onChange={(e) => setFormData({...formData, labels: {...formData.labels, bengali: e.target.value}})} 
+                    placeholder="Bengali: রাজনীতি" 
+                  />
+                </div>
               </div>
               <div className={styles.modalButtons}>
                 <button className={styles.cancelBtn} onClick={() => { setShowModal(false); setEditingId(null); }}>Cancel</button>

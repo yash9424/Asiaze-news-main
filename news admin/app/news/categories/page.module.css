@@ -21,7 +21,8 @@
 .modalTitle { font-size:22px; font-weight:700; margin-bottom:24px }
 .formGroup { margin-bottom:16px }
 .formGroup label { display:block; font-weight:600; margin-bottom:8px; font-size:14px }
-.formGroup input, .formGroup select { width:100%; padding:10px; border:1px solid #e0e0e0; border-radius:6px; font-size:14px }
+.formGroup input, .formGroup select, .formGroup textarea { width:100%; padding:10px; border:1px solid #e0e0e0; border-radius:6px; font-size:14px; font-family:Arial, sans-serif }
+.formGroup textarea { resize:vertical; min-height:60px }
 .modalButtons { display:flex; gap:12px; margin-top:24px; justify-content:flex-end }
 .cancelBtn { padding:10px 20px; background:#f0f0f0; border:none; border-radius:6px; cursor:pointer; font-weight:600 }
 .saveBtn { padding:10px 20px; background:#e31e3a; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600 }

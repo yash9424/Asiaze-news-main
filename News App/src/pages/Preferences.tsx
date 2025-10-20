@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
@@ -8,24 +8,32 @@ const languages = [
   { code: "BEN", label: "Bengali" },
 ];
 
-const interests = [
-  "Politics",
-  "Sports",
-  "Business",
-  "Tech",
-  "Lifestyle",
-  "Finance",
-  "Health",
-  "Entertainment",
-];
-
 const Preferences = () => {
   const navigate = useNavigate();
   const [selectedLanguage, setSelectedLanguage] = useState("HIN");
-  const [selectedInterests, setSelectedInterests] = useState<string[]>([
-    "Politics",
-    "Entertainment",
-  ]);
+  const [interests, setInterests] = useState<string[]>([]);
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('http://localhost:3000/api/categories');
+      const data = await res.json();
+      const activeCategories = data.categories
+        .filter((cat: any) => cat.isActive)
+        .map((cat: any) => cat.name);
+      setInterests(activeCategories);
+      setLoading(false);
+    } catch (error) {
+      console.error('Failed to fetch categories:', error);
+      setInterests(["Politics", "Sports", "Business", "Tech"]);
+      setLoading(false);
+    }
+  };
 
   const toggleInterest = (interest: string) => {
     setSelectedInterests((prev) =>
@@ -38,6 +46,14 @@ const Preferences = () => {
   const handleContinue = () => {
     navigate("/home");
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-foreground">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col justify-between px-4 sm:px-6 py-8 sm:py-12">
