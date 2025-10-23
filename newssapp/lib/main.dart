@@ -818,53 +818,24 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _query = TextEditingController();
-  final List<_Post> _allPosts = [
-    _Post(
-      'asset:refranceimages/749bdeef4bdd026b9e097927f39b724af759225c.png',
-      'Thrilling Soccer Match Concludes with Dramatic Finale',
-      'A match that kept fans on the edge of their seats...',
-      'ESPN • 2 hours ago',
-    ),
-    _Post(
-      'asset:refranceimages/c049d488ea53162e319b73ae144cac43efe0c895.png',
-      'Racing World Stunned by Lightning-Fast Performance',
-      'A match that kept fans on the edge of their seats...',
-      'ESPN • 2 hours ago',
-    ),
-    _Post(
-      'asset:refranceimages/d4ef3494bb5c951553079eccc43b57d68f698bb5.png',
-      'Market Update: Tech Stocks Rally Strongly',
-      'Latest market movements and trends across sectors...',
-      'ASIAZE • 1 hour ago',
-    ),
-    _Post(
-      'asset:refranceimages/8033abcf5b97cb3ea004c5f5403f403561b33094.png',
-      'New AI Breakthroughs Transform Daily Life',
-      'Innovations in technology that impact everyday living...',
-      'ASIAZE • 30 mins ago',
-    ),
-  ];
-
-  List<_Post> _results = [];
-
-  // Category filters (top chips)
-  final List<String> _categories = const ['My State', 'Sports', 'Business', 'Technology', 'Politics'];
+  List<dynamic> _allPosts = [];
+  List<dynamic> _results = [];
+  List<String> _categories = ['My State'];
+  bool _loading = true;
   String _selectedCategory = 'My State';
-  late final Map<String, String> _postCategoryByTitle = {
-    'Thrilling Soccer Match Concludes with Dramatic Finale': 'Sports',
-    'Racing World Stunned by Lightning-Fast Performance': 'Sports',
-    'Market Update: Tech Stocks Rally Strongly': 'Business',
-    'New AI Breakthroughs Transform Daily Life': 'Technology',
-  };
 
   void _applyFilters() {
     final q = _query.text.toLowerCase();
     setState(() {
       _results = _allPosts.where((p) {
-        final matchesQuery = p.title.toLowerCase().contains(q) || p.subtitle.toLowerCase().contains(q);
-        final cat = _postCategoryByTitle[p.title] ?? 'My State';
-        final matchesCategory = _selectedCategory == 'My State' || cat == _selectedCategory;
-        return matchesQuery && matchesCategory;
+        final title = (p['title'] ?? '').toString().toLowerCase();
+        final content = (p['summary'] ?? p['content'] ?? '').toString().toLowerCase();
+        final matchesQuery = q.isEmpty || title.contains(q) || content.contains(q);
+        
+        if (_selectedCategory == 'My State') return matchesQuery;
+        
+        final catName = p['category']?['name']?.toString() ?? '';
+        return matchesQuery && catName == _selectedCategory;
       }).toList();
     });
   }
@@ -872,8 +843,25 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
-    _results = List.of(_allPosts);
+    _fetchData();
     _query.addListener(_applyFilters);
+  }
+
+  Future<void> _fetchData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final interests = prefs.getStringList('interests') ?? [];
+      final news = await ApiService.getNews();
+      
+      setState(() {
+        _allPosts = news;
+        _results = news;
+        _categories = ['My State', ...interests];
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() => _loading = false);
+    }
   }
 
   @override
@@ -1000,58 +988,55 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
             Expanded(
-              child: _results.isNotEmpty
-                  ? ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      itemCount: _results.length,
-                      itemBuilder: (context, i) {
-                        final p = _results[i];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 16.0),
-                          child: Card(
-                            elevation: 2,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            clipBehavior: Clip.antiAlias,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Image.asset(
-                                  p.image.replaceFirst('asset:', ''),
-                                  height: 180,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _results.isNotEmpty
+                      ? ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          itemCount: _results.length,
+                          itemBuilder: (context, i) {
+                            final p = _results[i];
+                            final image = p['image'] ?? 'asset:refranceimages/Group (16).png';
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 16.0),
+                              child: Card(
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                clipBehavior: Clip.antiAlias,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    image.startsWith('asset:')
+                                        ? Image.asset(image.replaceFirst('asset:', ''), height: 180, width: double.infinity, fit: BoxFit.cover)
+                                        : Image.network(image, height: 180, width: double.infinity, fit: BoxFit.cover),
+                                    Container(height: 2, width: 50, color: red, margin: const EdgeInsets.only(left: 16, top: 8)),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(p['title'] ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                                          const SizedBox(height: 6),
+                                          Text(p['summary'] ?? p['content'] ?? '', style: TextStyle(color: Colors.grey.shade700), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                          const SizedBox(height: 8),
+                                          Text('ASIAZE • Recently', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                Container(height: 2, width: 50, color: red, margin: const EdgeInsets.only(left: 16, top: 8)),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(p.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                                      const SizedBox(height: 6),
-                                      Text(p.subtitle, style: TextStyle(color: Colors.grey.shade700)),
-                                      const SizedBox(height: 8),
-                                      Text(p.meta, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    )
-                  : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset(
-                          'refranceimages/8033abcf5b97cb3ea004c5f5403f403561b33094.png',
-                          height: 140,
+                              ),
+                            );
+                          },
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.search_off, size: 64, color: Colors.grey.shade400),
+                            const SizedBox(height: 16),
+                            Text('No results found', style: TextStyle(color: Colors.black54)),
+                          ],
                         ),
-                        const SizedBox(height: 24),
-                        Text('No results found', style: TextStyle(color: Colors.black54)),
-                      ],
-                    ),
             ),
           ],
         ),
@@ -1194,45 +1179,105 @@ class _VideoModel {
 class _VideosScreenState extends State<VideosScreen> {
   bool _muted = true;
   final PageController _pageController = PageController();
-  late final List<_VideoModel> _items = [
-    const _VideoModel(
-      url: 'refranceimages/AQN826RaKjrcT-4DxGI3wBmNuW2dn1xviUk10mDKiW0coGQW_BlbjZyBI5cRkGxiUWjaoPPVSGuyugR23yMrc435BFNbFaD71fwAdmU.mp4',
-      image: 'refranceimages/c049d488ea53162e319b73ae144cac43efe0c895.png',
-      title: 'Breaking News Headline',
-      source: 'Source Name',
-      timeAgo: '5 mins ago',
-    ),
-    const _VideoModel(
-      url: 'refranceimages/AQPoS0njRBl1Vxj4SOETYVB6HVBPfiL6afQIg12nK8GLb4ZK5XdeWAHR6e8tbWXoYAh7Jg5JZhJ8t8b6RNqO1hYh1AAYPRGO0_NB-Us.mp4',
-      image: 'refranceimages/749bdeef4bdd026b9e097927f39b724af759225c.png',
-      title: 'Breaking News Headline',
-      source: 'Source Name',
-      timeAgo: '8 mins ago',
-    ),
-  ];
-
+  List<_VideoModel> _items = [];
   final List<VideoPlayerController> _controllers = [];
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    for (final v in _items) {
-      final c = v.url.startsWith('refranceimages/')
-          ? VideoPlayerController.asset(v.url)
-          : VideoPlayerController.networkUrl(Uri.parse(v.url));
-      c.setLooping(true);
-      c.setVolume(_muted ? 0 : 1);
-      _controllers.add(c);
-    }
-    Future.wait(_controllers.map((c) => c.initialize())).then((_) {
-      if (!mounted) return;
-      setState(() {});
-      if (_controllers.isNotEmpty) {
-        final first = _controllers.first;
-        first.setVolume(_muted ? 0 : 1);
-        first.play();
+    _fetchReels();
+  }
+
+  Future<void> _fetchReels() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final categoryIds = prefs.getStringList('categoryIds') ?? [];
+      
+      List<dynamic> reels;
+      if (categoryIds.isEmpty) {
+        reels = await ApiService.getReels();
+      } else {
+        reels = [];
+        for (final id in categoryIds) {
+          final categoryReels = await ApiService.getReels(categoryId: id);
+          reels.addAll(categoryReels);
+        }
       }
-    });
+
+      if (reels.isEmpty) {
+        setState(() {
+          _items = [
+            const _VideoModel(
+              url: 'refranceimages/AQN826RaKjrcT-4DxGI3wBmNuW2dn1xviUk10mDKiW0coGQW_BlbjZyBI5cRkGxiUWjaoPPVSGuyugR23yMrc435BFNbFaD71fwAdmU.mp4',
+              image: 'refranceimages/c049d488ea53162e319b73ae144cac43efe0c895.png',
+              title: 'Breaking News Headline',
+              source: 'Source Name',
+              timeAgo: '5 mins ago',
+            ),
+          ];
+          _loading = false;
+        });
+      } else {
+        setState(() {
+          _items = reels.map((r) => _VideoModel(
+            url: r['videoUrl'] ?? '',
+            image: r['thumbnail'] ?? 'refranceimages/c049d488ea53162e319b73ae144cac43efe0c895.png',
+            title: r['title'] ?? 'News Reel',
+            source: 'ASIAZE',
+            timeAgo: _formatDate(r['publishedAt']),
+          )).toList();
+          _loading = false;
+        });
+      }
+
+      for (final v in _items) {
+        final c = v.url.startsWith('refranceimages/') || v.url.startsWith('http')
+            ? (v.url.startsWith('http') 
+                ? VideoPlayerController.networkUrl(Uri.parse(v.url))
+                : VideoPlayerController.asset(v.url))
+            : VideoPlayerController.asset(v.url);
+        c.setLooping(true);
+        c.setVolume(_muted ? 0 : 1);
+        _controllers.add(c);
+      }
+      
+      Future.wait(_controllers.map((c) => c.initialize())).then((_) {
+        if (!mounted) return;
+        setState(() {});
+        if (_controllers.isNotEmpty) {
+          final first = _controllers.first;
+          first.setVolume(_muted ? 0 : 1);
+          first.play();
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _items = [
+          const _VideoModel(
+            url: 'refranceimages/AQN826RaKjrcT-4DxGI3wBmNuW2dn1xviUk10mDKiW0coGQW_BlbjZyBI5cRkGxiUWjaoPPVSGuyugR23yMrc435BFNbFaD71fwAdmU.mp4',
+            image: 'refranceimages/c049d488ea53162e319b73ae144cac43efe0c895.png',
+            title: 'Breaking News Headline',
+            source: 'Source Name',
+            timeAgo: '5 mins ago',
+          ),
+        ];
+        _loading = false;
+      });
+    }
+  }
+
+  String _formatDate(dynamic date) {
+    if (date == null) return 'Recently';
+    try {
+      final dt = DateTime.parse(date.toString());
+      final diff = DateTime.now().difference(dt);
+      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+      if (diff.inHours < 24) return '${diff.inHours}h ago';
+      return '${diff.inDays}d ago';
+    } catch (e) {
+      return 'Recently';
+    }
   }
 
   @override
@@ -1623,11 +1668,57 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  List<Map<String, dynamic>> _allCategories = [];
+  List<Map<String, dynamic>> _userCategories = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCategories();
+  }
+
+  Future<void> _fetchCategories() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final interests = prefs.getStringList('interests') ?? [];
+      
+      final categories = await ApiService.getCategories();
+      final allCats = List<Map<String, dynamic>>.from(categories);
+      
+      setState(() {
+        _allCategories = allCats;
+        if (interests.isEmpty) {
+          _userCategories = allCats;
+        } else {
+          _userCategories = allCats.where((c) => interests.contains(c['name'].toString())).toList();
+        }
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() => _loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final red = AsiazeApp.primaryRed;
+    
+    if (_loading) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final displayCategories = [
+      {'name': 'My Feed', '_id': ''},
+      {'name': 'Videos', '_id': 'videos'},
+      ..._userCategories,
+    ];
+    
     return DefaultTabController(
-      length: 6,
+      length: displayCategories.length,
       child: Scaffold(
         backgroundColor: Colors.white,
         body: SafeArea(
@@ -1660,14 +1751,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     indicatorSize: TabBarIndicatorSize.label,
                     indicatorWeight: 3,
                     labelPadding: const EdgeInsets.only(right: 16),
-                    tabs: const [
-                      Tab(text: 'My Feed'),
-                      Tab(text: 'Videos'),
-                      Tab(text: 'Business'),
-                      Tab(text: 'Tech'),
-                      Tab(text: 'Finance'),
-                      Tab(text: 'Entertainment'),
-                    ],
+                    tabs: displayCategories.map((cat) => Tab(text: cat['name'].toString())).toList(),
                   ),
                 ),
               ),
@@ -1705,14 +1789,15 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: TabBarView(
                   physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    FeedList(category: 'My Feed'),
-                    FeedList(category: 'Videos'),
-                    FeedList(category: 'Business'),
-                    FeedList(category: 'Tech'),
-                    FeedList(category: 'Finance'),
-                    FeedList(category: 'Entertainment'),
-                  ],
+                  children: displayCategories.map((cat) {
+                    if (cat['name'] == 'Videos') {
+                      return const VideosScreen();
+                    }
+                    return FeedList(
+                      categoryName: cat['name'].toString(),
+                      categoryId: cat['_id']?.toString(),
+                    );
+                  }).toList(),
                 ),
               ),
             ],
@@ -1724,50 +1809,99 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class FeedList extends StatefulWidget {
-  final String category;
-  const FeedList({super.key, required this.category});
+  final String categoryName;
+  final String? categoryId;
+  const FeedList({super.key, required this.categoryName, this.categoryId});
 
   @override
   State<FeedList> createState() => _FeedListState();
 }
 
 class _FeedListState extends State<FeedList> {
+  List<dynamic> _news = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchNews();
+  }
+
+  Future<void> _fetchNews() async {
+    try {
+      List<dynamic> news;
+      if (widget.categoryName == 'My Feed') {
+        final prefs = await SharedPreferences.getInstance();
+        final categoryIds = prefs.getStringList('categoryIds') ?? [];
+        if (categoryIds.isEmpty) {
+          news = await ApiService.getNews();
+        } else {
+          news = [];
+          for (final id in categoryIds) {
+            final categoryNews = await ApiService.getNews(categoryId: id);
+            news.addAll(categoryNews);
+          }
+        }
+      } else {
+        news = await ApiService.getNews(categoryId: widget.categoryId);
+      }
+      setState(() {
+        _news = news;
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() => _loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      children: [
-        Container(
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_news.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.article_outlined, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text('No news available', style: TextStyle(color: Colors.grey.shade600)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      itemCount: _news.length,
+      itemBuilder: (context, index) {
+        final article = _news[index];
+        return Container(
           margin: const EdgeInsets.all(16.0),
           height: 400,
           child: NewsCard(
-            imageUrl: 'asset:refranceimages/Group (16).png',
-            title: 'Thrilling Soccer Match Concludes with Dramatic Finale',
-            subtitle: 'A match that kept fans on the edge of their seats with a nail-biting finish and standout performances.',
-            meta: 'ASIAZE • 2 hours ago',
+            imageUrl: article['image'] ?? 'asset:refranceimages/Group (16).png',
+            title: article['title'] ?? 'No Title',
+            subtitle: article['summary'] ?? article['content'] ?? '',
+            meta: 'ASIAZE • ${_formatDate(article['publishedAt'])}',
           ),
-        ),
-        Container(
-          margin: const EdgeInsets.all(16.0),
-          height: 400,
-          child: NewsCard(
-            imageUrl: 'asset:refranceimages/8033abcf5b97cb3ea004c5f5403f403561b33094.png',
-            title: 'Electric Cars Gain Momentum Across Major Cities',
-            subtitle: 'EV adoption surges as infrastructure expands, incentives rise, and range anxiety fades for urban commuters.',
-            meta: 'ASIAZE • 1 hour ago',
-          ),
-        ),
-        Container(
-          margin: const EdgeInsets.all(16.0),
-          height: 400,
-          child: NewsCard(
-            imageUrl: 'asset:refranceimages/4f52f4f362aa7270533b2fd93039fc712e5cc169.png',
-            title: 'Health Tips: Staying Active Daily',
-            subtitle: 'Simple routines and mindful habits keep energy up and stress low throughout your week.',
-            meta: 'ASIAZE • 5 hours ago',
-          ),
-        ),
-      ],
+        );
+      },
     );
+  }
+
+  String _formatDate(dynamic date) {
+    if (date == null) return 'Recently';
+    try {
+      final dt = DateTime.parse(date.toString());
+      final diff = DateTime.now().difference(dt);
+      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+      if (diff.inHours < 24) return '${diff.inHours}h ago';
+      return '${diff.inDays}d ago';
+    } catch (e) {
+      return 'Recently';
+    }
   }
 }
 
@@ -2268,7 +2402,7 @@ class PreferencesScreen extends StatefulWidget {
 class _PreferencesScreenState extends State<PreferencesScreen> {
   String _lang = 'EN';
   final List<String> _languages = const ['EN', 'HIN', 'BEN'];
-  List<String> _interests = [];
+  List<Map<String, dynamic>> _categories = [];
   final Set<String> _selected = {};
   bool _loading = true;
 
@@ -2282,7 +2416,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
     try {
       final categories = await ApiService.getCategories();
       setState(() {
-        _interests = categories.map((c) => c['name'].toString()).toList();
+        _categories = List<Map<String, dynamic>>.from(categories);
         _loading = false;
       });
     } catch (e) {
@@ -2325,7 +2459,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
               const SizedBox(height: 16),
               _loading
                   ? const Center(child: CircularProgressIndicator())
-                  : _interests.isEmpty
+                  : _categories.isEmpty
                       ? const Center(child: Text('No categories available'))
                       : GridView.count(
                           crossAxisCount: 2,
@@ -2334,7 +2468,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                           childAspectRatio: 1.9,
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          children: _interests.map((i) => _interestTile(i, red)).toList(),
+                          children: _categories.map((c) => _interestTile(c['name'].toString(), red)).toList(),
                         ),
               const SizedBox(height: 24),
               Align(
@@ -2350,7 +2484,19 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                         borderRadius: BorderRadius.circular(26),
                       ),
                     ),
-                    onPressed: () {
+                    onPressed: () async {
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setString('language', _lang);
+                      await prefs.setStringList('interests', _selected.toList());
+                      
+                      // Save category IDs for filtering
+                      final selectedIds = _categories
+                          .where((c) => _selected.contains(c['name'].toString()))
+                          .map((c) => c['_id'].toString())
+                          .toList();
+                      await prefs.setStringList('categoryIds', selectedIds);
+                      
+                      if (!mounted) return;
                       Navigator.of(context).pushReplacementNamed(MainNav.routeName);
                     },
                     child: const Text('Continue'),

@@ -35,8 +35,12 @@ class ApiService {
   }
 
   // Get all news
-  static Future<List<dynamic>> getNews() async {
-    final response = await http.get(Uri.parse('$baseUrl/news'));
+  static Future<List<dynamic>> getNews({String? categoryId}) async {
+    String url = '$baseUrl/news';
+    if (categoryId != null && categoryId.isNotEmpty) {
+      url += '?category=$categoryId';
+    }
+    final response = await http.get(Uri.parse(url));
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body)['news'] ?? [];
@@ -46,8 +50,12 @@ class ApiService {
   }
 
   // Get all reels
-  static Future<List<dynamic>> getReels() async {
-    final response = await http.get(Uri.parse('$baseUrl/reels'));
+  static Future<List<dynamic>> getReels({String? categoryId}) async {
+    String url = '$baseUrl/reels';
+    if (categoryId != null && categoryId.isNotEmpty) {
+      url += '?category=$categoryId';
+    }
+    final response = await http.get(Uri.parse(url));
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body)['reels'] ?? [];

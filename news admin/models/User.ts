@@ -6,6 +6,10 @@ const UserSchema = new mongoose.Schema({
   phone: { type: String },
   password: { type: String, required: true },
   role: { type: String, enum: ['admin', 'editor', 'user'], default: 'user' },
+  preferences: {
+    language: { type: String, default: 'EN' },
+    categories: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Category' }]
+  },
   isActive: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
