@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import News from '@/models/News';
+import Tag from '@/models/Tag';
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,14 +11,20 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get('category');
     
     const query: any = {};
-    if (status) query.status = status;
+    // If status is 'all', show all news (for admin panel)
+    // If no status specified, only show published news (for mobile app)
+    if (status && status !== 'all') {
+      query.status = status;
+    } else if (!status) {
+      query.status = 'published';
+    }
     if (category) query.category = category;
 
     const news = await News.find(query)
       .populate('category')
       .populate('tags')
       .populate('author', 'name email')
-      .sort({ createdAt: -1 });
+      .sort({ publishedAt: -1, createdAt: -1 });
 
     return NextResponse.json({ news });
   } catch (error) {
@@ -29,14 +36,39 @@ export async function POST(req: NextRequest) {
   try {
     await dbConnect();
     const data = await req.json();
+    console.log('Received data:', data);
     
-    const news = await News.create({
+    // Convert tag names to tag IDs
+    let tagIds = [];
+    if (data.tags && Array.isArray(data.tags)) {
+      tagIds = await Promise.all(
+        data.tags.map(async (tagName: string) => {
+          let tag = await Tag.findOne({ name: tagName });
+          if (!tag) {
+            tag = await Tag.create({ 
+              name: tagName, 
+              slug: tagName.toLowerCase().replace(/\s+/g, '-'),
+              isActive: true 
+            });
+          }
+          return tag._id;
+        })
+      );
+    }
+    
+    const newsData = {
       ...data,
+      tags: tagIds,
       updatedAt: new Date()
-    });
+    };
+    console.log('Creating news with data:', newsData);
+    
+    const news = await News.create(newsData);
+    console.log('Created news:', news);
 
     return NextResponse.json({ news }, { status: 201 });
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to create news' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error creating news:', error);
+    return NextResponse.json({ error: error.message || 'Failed to create news' }, { status: 500 });
   }
 }

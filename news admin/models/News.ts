@@ -10,6 +10,8 @@ const NewsSchema = new mongoose.Schema({
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   status: { type: String, enum: ['draft', 'published', 'archived'], default: 'draft' },
   views: { type: Number, default: 0 },
+  language: { type: String, default: 'EN' },
+  source: { type: String },
   publishedAt: { type: Date },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }

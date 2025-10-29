@@ -2,34 +2,38 @@
 
 import Sidebar from '@/components/Sidebar'
 import Link from 'next/link'
+import { useState, useEffect } from 'react'
 
 export default function ManageNewsPage() {
-  const newsData = [
-    {
-      id: 1,
-      headline: 'Breaking: Major Event Unfolds',
-      category: 'Politics',
-      language: 'EN',
-      status: 'Draft',
-      date: '12 Oct 2023',
-    },
-    {
-      id: 2,
-      headline: 'Entertainment: Film Release',
-      category: 'Entertainment',
-      language: 'HIN',
-      status: 'Published',
-      date: '10 Oct 2023',
-    },
-    {
-      id: 3,
-      headline: 'Finance: Market Update',
-      category: 'Finance',
-      language: 'BEN',
-      status: 'Draft',
-      date: '08 Oct 2023',
-    },
-  ]
+  const [newsData, setNewsData] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchNews()
+  }, [])
+
+  const fetchNews = async () => {
+    try {
+      const res = await fetch('/api/news?status=all')
+      const data = await res.json()
+      setNewsData(data.news || [])
+    } catch (error) {
+      console.error('Failed to fetch news:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Delete this news?')) {
+      try {
+        await fetch(`/api/news/${id}`, { method: 'DELETE' })
+        fetchNews()
+      } catch (error) {
+        console.error('Failed to delete news:', error)
+      }
+    }
+  }
 
   return (
     <div style={styles.container}>
@@ -64,37 +68,47 @@ export default function ManageNewsPage() {
               </tr>
             </thead>
             <tbody>
-              {newsData.map((news) => (
-                <tr key={news.id} style={styles.tableRow}>
-                  <td style={styles.td}>
-                    <input type="checkbox" />
-                  </td>
-                  <td style={styles.td}>{news.headline}</td>
-                  <td style={styles.td}>
-                    <span style={{
-                      ...styles.badge,
-                      backgroundColor: news.category === 'Politics' ? '#e31e3a' : news.category === 'Entertainment' ? '#e31e3a' : '#e31e3a'
-                    }}>
-                      {news.category}
-                    </span>
-                  </td>
-                  <td style={styles.td}>{news.language}</td>
-                  <td style={styles.td}>
-                    <span style={{
-                      ...styles.badge,
-                      backgroundColor: news.status === 'Published' ? '#28a745' : '#e31e3a'
-                    }}>
-                      {news.status}
-                    </span>
-                  </td>
-                  <td style={styles.td}>{news.date}</td>
-                  <td style={styles.td}>
-                    <Link href={`/news/edit/${news.id}`} style={styles.actionLink}>Edit</Link>
-                    <Link href={`/news/view/${news.id}`} style={styles.actionLink}>View</Link>
-                    <a href="#" style={styles.actionLink}>Delete</a>
-                  </td>
+              {loading ? (
+                <tr>
+                  <td colSpan={7} style={{ ...styles.td, textAlign: 'center' }}>Loading...</td>
                 </tr>
-              ))}
+              ) : newsData.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ ...styles.td, textAlign: 'center' }}>No news found</td>
+                </tr>
+              ) : (
+                newsData.map((news) => (
+                  <tr key={news._id} style={styles.tableRow}>
+                    <td style={styles.td}>
+                      <input type="checkbox" />
+                    </td>
+                    <td style={styles.td}>{news.title}</td>
+                    <td style={styles.td}>
+                      <span style={{
+                        ...styles.badge,
+                        backgroundColor: '#e31e3a'
+                      }}>
+                        {news.category?.name || 'N/A'}
+                      </span>
+                    </td>
+                    <td style={styles.td}>{news.language || 'EN'}</td>
+                    <td style={styles.td}>
+                      <span style={{
+                        ...styles.badge,
+                        backgroundColor: news.status === 'published' ? '#28a745' : '#e31e3a'
+                      }}>
+                        {news.status}
+                      </span>
+                    </td>
+                    <td style={styles.td}>{new Date(news.createdAt).toLocaleDateString()}</td>
+                    <td style={styles.td}>
+                      <Link href={`/news/edit/${news._id}`} style={styles.actionLink}>Edit</Link>
+                      <Link href={`/news/view/${news._id}`} style={styles.actionLink}>View</Link>
+                      <a href="#" onClick={(e) => { e.preventDefault(); handleDelete(news._id); }} style={styles.actionLink}>Delete</a>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

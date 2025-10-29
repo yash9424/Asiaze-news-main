@@ -2260,126 +2260,91 @@ class NewsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final red = AsiazeApp.primaryRed;
-    final truncatedSubtitle = _truncateWords(subtitle, 60);
     return Card(
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(16),
-              topRight: Radius.circular(16),
-            ),
-            child: Stack(
-              children: [
-                (imageUrl.startsWith('asset:')
-                    ? Image.asset(
-                        imageUrl.replaceFirst('asset:', ''),
-                        height: 160,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      )
-                    : Image.network(
-                        imageUrl,
-                        height: 160,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      )),
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: red,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: ValueListenableBuilder<List<SavedArticle>>(
-                      valueListenable: SavedArticlesStore.saved,
-                      builder: (context, saved, _) {
-                        final isSaved = saved.any((e) => e.title == title);
-                        return Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                SavedArticlesStore.toggle(SavedArticle(
-                                  image: imageUrl,
-                                  title: title,
-                                  subtitle: subtitle,
-                                  meta: meta,
-                                ));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(isSaved ? 'Removed from Saved' : 'Saved to articles')),
-                                );
-                              },
-                              child: Icon(isSaved ? Icons.bookmark : Icons.bookmark_border, color: Colors.white, size: 20),
-                            ),
-                            const SizedBox(width: 6),
-                            GestureDetector(
-                              onTap: () async {
-                                await Clipboard.setData(ClipboardData(text: title));
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Title copied')));
-                              },
-                              child: const Icon(Icons.share, color: Colors.white, size: 20),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
+          Stack(
+            children: [
+              (imageUrl.startsWith('asset:')
+                  ? Image.asset(
+                      imageUrl.replaceFirst('asset:', ''),
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    )
+                  : Image.network(
+                      imageUrl,
+                      height: 200,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    )),
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: red,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: ValueListenableBuilder<List<SavedArticle>>(
+                    valueListenable: SavedArticlesStore.saved,
+                    builder: (context, saved, _) {
+                      final isSaved = saved.any((e) => e.title == title);
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onTap: () {
+                              SavedArticlesStore.toggle(SavedArticle(
+                                image: imageUrl,
+                                title: title,
+                                subtitle: subtitle,
+                                meta: meta,
+                              ));
+                            },
+                            child: Icon(isSaved ? Icons.bookmark : Icons.bookmark_border, color: Colors.white, size: 18),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () async {
+                              await Clipboard.setData(ClipboardData(text: title));
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copied')));
+                            },
+                            child: const Icon(Icons.share, color: Colors.white, size: 18),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Container(height: 4, width: 48, color: red),
-                ),
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  truncatedSubtitle,
-                  style: TextStyle(color: Colors.grey.shade700, fontSize: 14, height: 1.35),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.black),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  meta,
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  subtitle,
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14, height: 1.4),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 12),
-                Container(
-                  height: 56,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Ad Space',
-                      style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w600),
-                    ),
-                  ),
+                Text(
+                  meta,
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
                 ),
               ],
             ),

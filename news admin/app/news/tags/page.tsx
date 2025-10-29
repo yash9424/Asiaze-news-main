@@ -1,40 +1,65 @@
 'use client'
 
 import Sidebar from '@/components/Sidebar'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import styles from './page.module.css'
 
 export default function TagsPage() {
-  const [tags, setTags] = useState([
-    { id: 1, name: 'Breaking', status: 'Active', dateCreated: '2023-10-01' },
-    { id: 2, name: 'Trending', status: 'Inactive', dateCreated: '2023-09-15' },
-    { id: 3, name: 'Elections', status: 'Active', dateCreated: '2023-08-20' }
-  ])
+  const [tags, setTags] = useState<any[]>([])
   const [showModal, setShowModal] = useState(false)
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [formData, setFormData] = useState({ name: '', status: 'Active' })
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [formData, setFormData] = useState({ name: '', isActive: true })
+
+  useEffect(() => {
+    fetchTags()
+  }, [])
+
+  const fetchTags = async () => {
+    const res = await fetch('/api/tags')
+    const data = await res.json()
+    setTags(data)
+  }
 
   const handleEdit = (tag: any) => {
-    setEditingId(tag.id)
-    setFormData({ name: tag.name, status: tag.status })
+    setEditingId(tag._id)
+    setFormData({ name: tag.name, isActive: tag.isActive })
     setShowModal(true)
   }
 
-  const handleSubmit = () => {
+  const handleDelete = async (id: string) => {
+    if (confirm('Delete this tag?')) {
+      await fetch(`/api/tags/${id}`, { method: 'DELETE' })
+      fetchTags()
+    }
+  }
+
+  const toggleStatus = async (tag: any) => {
+    await fetch(`/api/tags/${tag._id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isActive: !tag.isActive })
+    })
+    fetchTags()
+  }
+
+  const handleSubmit = async () => {
     if (editingId) {
-      setTags(tags.map(tag => tag.id === editingId ? { ...tag, name: formData.name, status: formData.status } : tag))
+      await fetch(`/api/tags/${editingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
     } else {
-      const newTag = {
-        id: tags.length + 1,
-        name: formData.name,
-        status: formData.status,
-        dateCreated: new Date().toISOString().split('T')[0]
-      }
-      setTags([...tags, newTag])
+      await fetch('/api/tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
     }
     setShowModal(false)
     setEditingId(null)
-    setFormData({ name: '', status: 'Active' })
+    setFormData({ name: '', isActive: true })
+    fetchTags()
   }
 
   return (
@@ -58,17 +83,21 @@ export default function TagsPage() {
             </thead>
             <tbody>
               {tags.map(tag => (
-                <tr key={tag.id}>
+                <tr key={tag._id}>
                   <td>{tag.name}</td>
                   <td>
-                    <span className={tag.status === 'Active' ? styles.statusActive : styles.statusInactive}>
-                      {tag.status}
+                    <span 
+                      className={tag.isActive ? styles.statusActive : styles.statusInactive}
+                      onClick={() => toggleStatus(tag)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {tag.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td>{tag.dateCreated}</td>
+                  <td>{new Date(tag.createdAt).toLocaleDateString()}</td>
                   <td>
                     <button className={styles.iconBtn} onClick={() => handleEdit(tag)}>✏️</button>
-                    <button className={styles.iconBtn}>🗑️</button>
+                    <button className={styles.iconBtn} onClick={() => handleDelete(tag._id)}>🗑️</button>
                   </td>
                 </tr>
               ))}
@@ -86,7 +115,7 @@ export default function TagsPage() {
               </div>
               <div className={styles.formGroup}>
                 <label>Status</label>
-                <select value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
+                <select value={formData.isActive ? 'Active' : 'Inactive'} onChange={(e) => setFormData({...formData, isActive: e.target.value === 'Active'})}>
                   <option>Active</option>
                   <option>Inactive</option>
                 </select>

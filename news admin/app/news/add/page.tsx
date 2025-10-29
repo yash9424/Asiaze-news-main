@@ -1,8 +1,9 @@
  'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Sidebar from '@/components/Sidebar'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import styles from './page.module.css'
 
 export default function AddNewsPage() {
@@ -16,33 +17,110 @@ export default function AddNewsPage() {
     currentTag: string
     source: string
     timestamp: string
+    image: string
   }
 
+  const router = useRouter()
+  const [categories, setCategories] = useState<any[]>([])
+  const [existingTags, setExistingTags] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [showTagDropdown, setShowTagDropdown] = useState(false)
   const [formData, setFormData] = useState<FormData>({
     headline: '',
     summary: '',
     fullArticleLink: '',
-    category: 'Politics',
+    category: '',
     language: 'EN',
     tags: [],
     currentTag: '',
     source: '',
-    timestamp: ''
+    timestamp: '',
+    image: ''
   })
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, image: reader.result as string }))
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  useEffect(() => {
+    fetchCategories()
+    fetchTags()
+  }, [])
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/categories')
+      const data = await res.json()
+      const activeCategories = (data.categories || []).filter((cat: any) => cat.isActive)
+      setCategories(activeCategories)
+      if (activeCategories.length > 0) {
+        setFormData(prev => ({ ...prev, category: activeCategories[0]._id }))
+      }
+    } catch (error) {
+      console.error('Failed to fetch categories:', error)
+    }
+  }
+
+  const fetchTags = async () => {
+    try {
+      const res = await fetch('/api/tags')
+      const data = await res.json()
+      setExistingTags(data.filter((tag: any) => tag.isActive))
+    } catch (error) {
+      console.error('Failed to fetch tags:', error)
+    }
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target as HTMLInputElement
     setFormData(prev => ({ ...prev, [name]: value } as unknown as FormData))
   }
 
-  const handleAddTag = () => {
-    if (formData.currentTag?.trim()) {
+  const handleAddTag = async () => {
+    const tagName = formData.currentTag?.trim()
+    if (tagName && !formData.tags.includes(tagName)) {
+      // Check if tag exists in database
+      const tagExists = existingTags.find(t => t.name.toLowerCase() === tagName.toLowerCase())
+      
+      if (!tagExists) {
+        // Create new tag in database
+        try {
+          await fetch('/api/tags', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: tagName, isActive: true })
+          })
+          fetchTags() // Refresh tags list
+        } catch (error) {
+          console.error('Failed to create tag:', error)
+        }
+      }
+      
       setFormData(prev => ({
         ...prev,
-        tags: [...prev.tags, prev.currentTag.trim()],
+        tags: [...prev.tags, tagName],
+        currentTag: ''
+      }))
+      setShowTagDropdown(false)
+    }
+  }
+
+  const handleSelectTag = (tagName: string) => {
+    if (!formData.tags.includes(tagName)) {
+      setFormData(prev => ({
+        ...prev,
+        tags: [...prev.tags, tagName],
         currentTag: ''
       }))
     }
+    setShowTagDropdown(false)
   }
 
   const handleRemoveTag = (tagToRemove: string) => {
@@ -52,10 +130,46 @@ export default function AddNewsPage() {
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>, status: string = 'published') => {
     if (e && 'preventDefault' in e) e.preventDefault()
-    console.log('Form submitted:', formData)
-    // TODO: wire to backend
+    
+    if (!formData.headline || !formData.summary || !formData.category) {
+      alert('Please fill in all required fields')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const res = await fetch('/api/news', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.headline,
+          content: formData.fullArticleLink,
+          summary: formData.summary,
+          image: formData.image,
+          category: formData.category,
+          tags: formData.tags,
+          language: formData.language,
+          source: formData.source,
+          status: status,
+          publishedAt: status === 'published' ? (formData.timestamp || new Date().toISOString()) : null
+        })
+      })
+
+      if (res.ok) {
+        alert(`News ${status} successfully!`)
+        router.push('/news')
+      } else {
+        const error = await res.json()
+        alert(`Failed to ${status} news: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Failed to save news')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -116,10 +230,9 @@ export default function AddNewsPage() {
                     onChange={handleChange}
                     className={styles.select}
                   >
-                    <option value="Politics">Politics</option>
-                    <option value="Entertainment">Entertainment</option>
-                    <option value="Finance">Finance</option>
-                    <option value="Sports">Sports</option>
+                    {categories.map(cat => (
+                      <option key={cat._id} value={cat._id}>{cat.name}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -141,18 +254,63 @@ export default function AddNewsPage() {
 
               <div className={styles.formGroup}>
                 <label className={styles.label}>Tags</label>
-                <div className={styles.tagInputContainer}>
-                  <input
-                    type="text"
-                    name="currentTag"
-                    value={formData.currentTag}
-                    onChange={handleChange}
-                    placeholder="Type to add tags"
-                    className={styles.tagInput}
-                  />
-                  <button type="button" onClick={handleAddTag} className={styles.addTagBtn}>
-                    Add
-                  </button>
+                <div style={{ position: 'relative' }}>
+                  <div className={styles.tagInputContainer}>
+                    <input
+                      type="text"
+                      name="currentTag"
+                      value={formData.currentTag}
+                      onChange={handleChange}
+                      onFocus={() => setShowTagDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowTagDropdown(false), 200)}
+                      placeholder="Type to add tags or select from dropdown"
+                      className={styles.tagInput}
+                    />
+                    <button type="button" onClick={handleAddTag} className={styles.addTagBtn}>
+                      Add
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setShowTagDropdown(!showTagDropdown)
+                      }} 
+                      className={styles.dropdownBtn}
+                    >
+                      ▼
+                    </button>
+                  </div>
+                  {showTagDropdown && existingTags.length > 0 && (
+                    <div className={styles.tagDropdown}>
+                      {existingTags
+                        .filter(tag => 
+                          !formData.tags.includes(tag.name) &&
+                          tag.name.toLowerCase().includes((formData.currentTag || '').toLowerCase())
+                        )
+                        .slice(0, 10)
+                        .map(tag => (
+                          <div 
+                            key={tag._id} 
+                            className={styles.tagDropdownItem}
+                            onMouseDown={(e) => {
+                              e.preventDefault()
+                              handleSelectTag(tag.name)
+                            }}
+                          >
+                            {tag.name}
+                          </div>
+                        ))
+                      }
+                      {existingTags.filter(tag => 
+                        !formData.tags.includes(tag.name) &&
+                        tag.name.toLowerCase().includes((formData.currentTag || '').toLowerCase())
+                      ).length === 0 && (
+                        <div className={styles.tagDropdownItem} style={{ color: '#999', cursor: 'default' }}>
+                          No tags found
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className={styles.tagsContainer}>
                   {formData.tags.map((tag: string, index: number) => (
@@ -176,10 +334,25 @@ export default function AddNewsPage() {
               <label className={styles.label}>Upload Image</label>
               <div className={styles.imageUploadWrap}>
                 <div className={styles.imagePreview}>
-                  <div className={styles.uploadPlaceholder}>Preview</div>
+                  {formData.image ? (
+                    <img src={formData.image} alt="Preview" className={styles.previewImage} />
+                  ) : (
+                    <div className={styles.uploadPlaceholder}>Preview</div>
+                  )}
                 </div>
-                <button type="button" className={styles.uploadBtn}>
-                  Upload/Replace Image
+                <input
+                  type="file"
+                  id="imageUpload"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  style={{ display: 'none' }}
+                />
+                <button
+                  type="button"
+                  className={styles.uploadBtn}
+                  onClick={() => document.getElementById('imageUpload')?.click()}
+                >
+                  {formData.image ? 'Replace Image' : 'Upload Image'}
                 </button>
               </div>
 
@@ -211,11 +384,21 @@ export default function AddNewsPage() {
           </form>
 
           <div className={styles.buttonRow}>
-            <button type="button" className={styles.saveAsDraftBtn}>
-              Save as Draft
+            <button 
+              type="button" 
+              onClick={(e) => handleSubmit(e, 'draft')} 
+              disabled={loading}
+              className={styles.saveAsDraftBtn}
+            >
+              {loading ? 'Saving...' : 'Save as Draft'}
             </button>
-            <button type="submit" form="" onClick={handleSubmit} className={styles.publishBtn}>
-              Publish
+            <button 
+              type="submit" 
+              onClick={(e) => handleSubmit(e, 'published')} 
+              disabled={loading}
+              className={styles.publishBtn}
+            >
+              {loading ? 'Publishing...' : 'Publish'}
             </button>
             <Link href="/news" className={styles.cancelLink}>
               Cancel

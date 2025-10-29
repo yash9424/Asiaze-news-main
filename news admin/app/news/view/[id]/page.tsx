@@ -2,25 +2,35 @@
 
 import Sidebar from '@/components/Sidebar'
 import Link from 'next/link'
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import styles from '../page.module.css'
 
-export default function ViewNewsPage({ params }: { params: any }) {
-  const { id } = params
+export default function ViewNewsPage({ params }: { params: Promise<{ id: string }> }) {
+  const [newsData, setNewsData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [id, setId] = useState<string>('')
 
-  // Mock data for the news article
-  const newsData = {
-    headline: 'Breaking News: Major Event in the City',
-    summary:
-      'This is a short summary of the news article, providing a brief overview of the major event happening in the city, limited to approximately 60 words to give a quick insight for readers.',
-    fullArticleLink: 'https://example.com/full-article',
-    category: 'Politics',
-    language: 'English',
-    source: 'ASIAZE News Network',
-    timestamp: '2023-10-14T10:00',
-    tags: ['Breaking', 'Local'],
-    imageUrl: '/sample-image.jpg'
+  useEffect(() => {
+    params.then(p => {
+      setId(p.id)
+      fetchNews(p.id)
+    })
+  }, [])
+
+  const fetchNews = async (newsId: string) => {
+    try {
+      const res = await fetch(`/api/news/${newsId}`)
+      const data = await res.json()
+      setNewsData(data.news)
+    } catch (error) {
+      console.error('Failed to fetch news:', error)
+    } finally {
+      setLoading(false)
+    }
   }
+
+  if (loading) return <div>Loading...</div>
+  if (!newsData) return <div>News not found</div>
 
   return (
     <div className={styles.container}>
@@ -35,36 +45,44 @@ export default function ViewNewsPage({ params }: { params: any }) {
 
         <div className={styles.content}>
           <div className={styles.articleContainer}>
-            <img src={newsData.imageUrl} alt={newsData.headline} className={styles.articleImage} />
-            <h2 className={styles.articleHeadline}>{newsData.headline}</h2>
+            {newsData.image && <img src={newsData.image} alt={newsData.title} className={styles.articleImage} />}
+            <h2 className={styles.articleHeadline}>{newsData.title}</h2>
             <p className={styles.articleSummary}>{newsData.summary}</p>
           </div>
 
           <aside className={styles.rightPanel}>
             <div className={styles.metaTitle}>Headline</div>
-            <div className={styles.metaItem}>{newsData.headline}</div>
+            <div className={styles.metaItem}>{newsData.title}</div>
 
             <div className={styles.metaTitle}>Summary</div>
             <div className={styles.metaItem}>{newsData.summary}</div>
 
             <div className={styles.metaTitle}>Full Article Link</div>
             <div className={styles.metaItem}>
-              <a href={newsData.fullArticleLink} target="_blank" rel="noreferrer">
+              <a href={newsData.content} target="_blank" rel="noreferrer">
                 Read Full Article
               </a>
             </div>
 
             <div className={styles.metaTitle}>Category</div>
-            <div className={styles.metaItem}>{newsData.category}</div>
+            <div className={styles.metaItem}>{newsData.category?.name || 'N/A'}</div>
 
             <div className={styles.metaTitle}>Language</div>
-            <div className={styles.metaItem}>{newsData.language}</div>
+            <div className={styles.metaItem}>{newsData.language || 'EN'}</div>
+
+            <div className={styles.metaTitle}>Tags</div>
+            <div className={styles.metaItem}>
+              {newsData.tags?.map((tag: any) => tag.name).join(', ') || 'No tags'}
+            </div>
 
             <div className={styles.metaTitle}>Source</div>
-            <div className={styles.metaItem}>{newsData.source}</div>
+            <div className={styles.metaItem}>{newsData.source || 'N/A'}</div>
 
-            <div className={styles.metaTitle}>Timestamp</div>
-            <div className={styles.metaItem}>{new Date(newsData.timestamp).toLocaleString()}</div>
+            <div className={styles.metaTitle}>Status</div>
+            <div className={styles.metaItem}>{newsData.status}</div>
+
+            <div className={styles.metaTitle}>Date Created</div>
+            <div className={styles.metaItem}>{new Date(newsData.createdAt).toLocaleString()}</div>
 
             <div className={styles.buttonRow}>
               <Link href={`/news/edit/${id}`} className={styles.editBtn}>
