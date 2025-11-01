@@ -2262,6 +2262,7 @@ class NewsCard extends StatelessWidget {
     final red = AsiazeApp.primaryRed;
     return Card(
       elevation: 2,
+      color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       clipBehavior: Clip.antiAlias,
       child: Column(

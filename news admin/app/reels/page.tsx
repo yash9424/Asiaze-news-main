@@ -1,16 +1,28 @@
 'use client'
 
 import Sidebar from '@/components/Sidebar'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import styles from './page.module.css'
 
 export default function ManageReelsPage() {
-  const [reels, setReels] = useState([
-    { id: 1, headline: 'Exciting Reel Headline...', category: 'Entertainment', language: 'EN', status: 'Published', views: 1234, likes: 567, dateCreated: '2023-10-01' },
-    { id: 2, headline: 'Quarterly Finance Update...', category: 'Finance', language: 'EN', status: 'Draft', views: 892, likes: 234, dateCreated: '2023-09-28' },
-    { id: 3, headline: 'Breaking News: Market Trends...', category: 'Finance', language: 'HIN', status: 'Draft', views: 456, likes: 789, dateCreated: '2023-09-15' },
-    { id: 4, headline: 'Political Debate Highlights...', category: 'Politics', language: 'BEN', status: 'Published', views: 345, likes: 789, dateCreated: '2023-09-25' }
-  ])
+  const [reels, setReels] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchReels()
+  }, [])
+
+  const fetchReels = async () => {
+    try {
+      const res = await fetch('/api/reels?status=all')
+      const data = await res.json()
+      setReels(data.reels || [])
+    } catch (err) {
+      console.error('Failed to fetch reels:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
   const [selected, setSelected] = useState<number[]>([])
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -23,6 +35,8 @@ export default function ManageReelsPage() {
     tags: ['Tag1', 'Tag2', 'Tag3'],
     sourceName: '',
     duration: '',
+    videoUrl: '',
+    thumbnail: '',
     featured: true,
     enableComments: true
   })
@@ -32,20 +46,42 @@ export default function ManageReelsPage() {
   }
 
   const handleEdit = (reel: any) => {
-    setEditingId(reel.id)
-    setFormData({
-      title: reel.headline,
-      summary: 'Current summary text, limited to 60 words.',
-      fullArticleLink: 'https://currentarticlelink.com',
-      category: reel.category,
-      language: reel.language,
-      tags: ['Tag1', 'Tag2', 'Tag3'],
-      sourceName: 'Current Source Name',
-      duration: '00:02:30',
-      featured: true,
-      enableComments: true
-    })
-    setShowModal(true)
+    window.location.href = `/reels/edit/${reel._id}`
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this reel?')) return
+    
+    try {
+      const res = await fetch(`/api/reels/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setReels(reels.filter(r => r._id !== id))
+        alert('Reel deleted successfully')
+      } else {
+        alert('Failed to delete reel')
+      }
+    } catch (err) {
+      console.error('Delete error:', err)
+      alert('Error deleting reel')
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selected.length === 0) {
+      alert('Please select reels to delete')
+      return
+    }
+    if (!confirm(`Delete ${selected.length} reel(s)?`)) return
+
+    try {
+      await Promise.all(selected.map(id => fetch(`/api/reels/${id}`, { method: 'DELETE' })))
+      setReels(reels.filter(r => !selected.includes(r._id)))
+      setSelected([])
+      alert('Reels deleted successfully')
+    } catch (err) {
+      console.error('Bulk delete error:', err)
+      alert('Error deleting reels')
+    }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -121,27 +157,33 @@ export default function ManageReelsPage() {
               </tr>
             </thead>
             <tbody>
-              {reels.map(reel => (
-                <tr key={reel.id}>
-                  <td><input type="checkbox" checked={selected.includes(reel.id)} onChange={() => toggleSelect(reel.id)} /></td>
-                  <td><a href="#" className={styles.link}>{reel.headline}</a></td>
-                  <td><span className={styles.badge}>{reel.category}</span></td>
-                  <td>{reel.language}</td>
-                  <td>
-                    <span className={reel.status === 'Published' ? styles.statusPublished : styles.statusDraft}>
-                      {reel.status}
-                    </span>
-                  </td>
-                  <td>{reel.views}</td>
-                  <td>{reel.likes}</td>
-                  <td>{reel.dateCreated}</td>
-                  <td>
-                    <button className={styles.iconBtn} onClick={() => handleEdit(reel)}>✏️</button>
-                    <button className={styles.iconBtn} onClick={() => window.location.href = `/reels/view/${reel.id}`}>👁️</button>
-                    <button className={styles.iconBtn}>🗑️</button>
-                  </td>
-                </tr>
-              ))}
+              {loading ? (
+                <tr><td colSpan={9} style={{ textAlign: 'center' }}>Loading...</td></tr>
+              ) : reels.length === 0 ? (
+                <tr><td colSpan={9} style={{ textAlign: 'center' }}>No reels found</td></tr>
+              ) : (
+                reels.map(reel => (
+                  <tr key={reel._id}>
+                    <td><input type="checkbox" checked={selected.includes(reel._id)} onChange={() => toggleSelect(reel._id)} /></td>
+                    <td><a href="#" className={styles.link}>{reel.title}</a></td>
+                    <td><span className={styles.badge}>{reel.category?.name || 'N/A'}</span></td>
+                    <td>{reel.language || 'EN'}</td>
+                    <td>
+                      <span className={reel.status === 'published' ? styles.statusPublished : styles.statusDraft}>
+                        {reel.status}
+                      </span>
+                    </td>
+                    <td>{reel.views || 0}</td>
+                    <td>{reel.likes || 0}</td>
+                    <td>{new Date(reel.createdAt).toLocaleDateString()}</td>
+                    <td>
+                      <button className={styles.iconBtn} onClick={() => handleEdit(reel)}>✏️</button>
+                      <button className={styles.iconBtn} onClick={() => window.location.href = `/reels/view/${reel._id}`}>👁️</button>
+                      <button className={styles.iconBtn} onClick={() => handleDelete(reel._id)}>🗑️</button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -149,7 +191,7 @@ export default function ManageReelsPage() {
         <div className={styles.bulkActions}>
           <button className={styles.publishBtn}>Publish</button>
           <button className={styles.unpublishBtn}>Unpublish</button>
-          <button className={styles.deleteBtn}>Delete</button>
+          <button className={styles.deleteBtn} onClick={handleBulkDelete}>Delete</button>
         </div>
 
         {showModal && (
@@ -236,17 +278,41 @@ export default function ManageReelsPage() {
                   <div className={styles.formGroup}>
                     <label className={styles.label}>Current Video</label>
                     <div className={styles.videoPreview}>
-                      <div className={styles.previewPlaceholder}>Video Preview</div>
+                      {formData.videoUrl ? (
+                        <video src={formData.videoUrl} controls style={{ width: '100%', height: '100%' }} />
+                      ) : (
+                        <div className={styles.previewPlaceholder}>No Video</div>
+                      )}
                     </div>
-                    <button className={styles.replaceBtn}>Replace Video</button>
+                    <input
+                      type="text"
+                      name="videoUrl"
+                      value={formData.videoUrl}
+                      onChange={handleChange}
+                      placeholder="Video URL"
+                      className={styles.input}
+                      style={{ marginTop: '8px' }}
+                    />
                   </div>
 
                   <div className={styles.formGroup}>
                     <label className={styles.label}>Current Thumbnail</label>
                     <div className={styles.thumbnailPreview}>
-                      <div className={styles.previewPlaceholder}>Thumbnail Preview</div>
+                      {formData.thumbnail ? (
+                        <img src={formData.thumbnail} alt="Thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <div className={styles.previewPlaceholder}>No Thumbnail</div>
+                      )}
                     </div>
-                    <button className={styles.replaceBtn}>Replace Thumbnail</button>
+                    <input
+                      type="text"
+                      name="thumbnail"
+                      value={formData.thumbnail}
+                      onChange={handleChange}
+                      placeholder="Thumbnail URL"
+                      className={styles.input}
+                      style={{ marginTop: '8px' }}
+                    />
                   </div>
 
                   <div className={styles.formGroup}>

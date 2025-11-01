@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Reel from '@/models/Reel';
+import Tag from '@/models/Tag';
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,7 +11,11 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get('category');
     
     const query: any = {};
-    if (status) query.status = status;
+    if (status && status !== 'all') {
+      query.status = status;
+    } else if (!status) {
+      query.status = 'published';
+    }
     if (category) query.category = category;
 
     const reels = await Reel.find(query)
@@ -30,13 +35,32 @@ export async function POST(req: NextRequest) {
     await dbConnect();
     const data = await req.json();
     
+    let tagIds = [];
+    if (data.tags && Array.isArray(data.tags)) {
+      tagIds = await Promise.all(
+        data.tags.map(async (tagName: string) => {
+          let tag = await Tag.findOne({ name: tagName });
+          if (!tag) {
+            tag = await Tag.create({ 
+              name: tagName, 
+              slug: tagName.toLowerCase().replace(/\s+/g, '-'),
+              isActive: true 
+            });
+          }
+          return tag._id;
+        })
+      );
+    }
+    
     const reel = await Reel.create({
       ...data,
+      tags: tagIds,
       updatedAt: new Date()
     });
 
     return NextResponse.json({ reel }, { status: 201 });
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to create reel' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error creating reel:', error);
+    return NextResponse.json({ error: error.message || 'Failed to create reel' }, { status: 500 });
   }
 }
