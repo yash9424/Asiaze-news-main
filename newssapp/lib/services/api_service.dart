@@ -13,9 +13,21 @@ class ApiService {
     );
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      final data = jsonDecode(response.body);
+      return data;
     } else {
       throw Exception(jsonDecode(response.body)['error'] ?? 'Login failed');
+    }
+  }
+
+  // Get current user profile
+  static Future<Map<String, dynamic>> getUserProfile(String userId) async {
+    final response = await http.get(Uri.parse('$baseUrl/users/$userId'));
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to load user profile');
     }
   }
 

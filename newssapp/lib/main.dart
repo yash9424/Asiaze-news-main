@@ -385,13 +385,19 @@ class _LoginScreenState extends State<LoginScreen> {
                           setState(() => _loading = true);
 
                           try {
-                            await ApiService.login(
+                            final loginData = await ApiService.login(
                               _emailCtrl.text,
                               _passCtrl.text,
                             );
                             
                             final prefs = await SharedPreferences.getInstance();
                             await prefs.setBool('isLoggedIn', true);
+                            
+                            // Save user data
+                            final user = loginData['user'];
+                            await prefs.setString('userId', user['id'].toString());
+                            await prefs.setString('userName', user['name'].toString());
+                            await prefs.setString('userEmail', user['email'].toString());
                             
                             if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -1045,8 +1051,39 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 }
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  String _userName = '';
+  String _userEmail = '';
+  String _initials = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userName = prefs.getString('userName') ?? 'User';
+      _userEmail = prefs.getString('userEmail') ?? 'user@example.com';
+      _initials = _getInitials(_userName);
+    });
+  }
+
+  String _getInitials(String name) {
+    final parts = name.trim().split(' ');
+    if (parts.isEmpty) return 'U';
+    if (parts.length == 1) return parts[0][0].toUpperCase();
+    return '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1070,12 +1107,12 @@ class ProfileScreen extends StatelessWidget {
           CircleAvatar(
             radius: 44,
             backgroundColor: Colors.grey.shade300,
-            child: const Text('AB', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
+            child: Text(_initials, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700)),
           ),
           const SizedBox(height: 12),
-          const Center(child: Text('Alex Brown', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
+          Center(child: Text(_userName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700))),
           const SizedBox(height: 4),
-          const Center(child: Text('alex.brown@example.com', style: TextStyle(color: Colors.black54))),
+          Center(child: Text(_userEmail, style: const TextStyle(color: Colors.black54))),
           const SizedBox(height: 16),
           const Divider(),
           ListTile(
@@ -1114,6 +1151,9 @@ class ProfileScreen extends StatelessWidget {
                 onPressed: () async {
                   final prefs = await SharedPreferences.getInstance();
                   await prefs.setBool('isLoggedIn', false);
+                  await prefs.remove('userId');
+                  await prefs.remove('userName');
+                  await prefs.remove('userEmail');
                   if (!context.mounted) return;
                   Navigator.of(context).pushNamedAndRemoveUntil(LoginScreen.routeName, (route) => false);
                 },
