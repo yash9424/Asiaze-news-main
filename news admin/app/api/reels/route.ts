@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Reel from '@/models/Reel';
 import Tag from '@/models/Tag';
+import Category from '@/models/Category';
 
 export async function GET(req: NextRequest) {
   try {
@@ -19,8 +20,6 @@ export async function GET(req: NextRequest) {
     if (category) query.category = category;
 
     const reels = await Reel.find(query)
-      .populate('category')
-      .populate('tags')
       .lean()
       .sort({ createdAt: -1 });
 

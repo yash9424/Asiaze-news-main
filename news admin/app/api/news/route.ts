@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import News from '@/models/News';
 import Tag from '@/models/Tag';
+import Category from '@/models/Category';
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,8 +22,6 @@ export async function GET(req: NextRequest) {
     if (category) query.category = category;
 
     const news = await News.find(query)
-      .populate('category')
-      .populate('tags')
       .lean()
       .sort({ publishedAt: -1, createdAt: -1 });
 

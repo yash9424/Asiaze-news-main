@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  webpack: (config) => {
+    config.externals = [...(config.externals || []), { bufferutil: 'bufferutil', 'utf-8-validate': 'utf-8-validate' }];
+    return config;
+  },
   async headers() {
     return [
       {
@@ -17,12 +21,6 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '500mb'
     }
-  },
-  api: {
-    bodyParser: {
-      sizeLimit: '500mb'
-    },
-    responseLimit: false
   }
 };
 
