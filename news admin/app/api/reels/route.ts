@@ -21,12 +21,13 @@ export async function GET(req: NextRequest) {
     const reels = await Reel.find(query)
       .populate('category')
       .populate('tags')
-      .populate('author', 'name email')
+      .lean()
       .sort({ createdAt: -1 });
 
     return NextResponse.json({ reels });
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch reels' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error fetching reels:', error);
+    return NextResponse.json({ error: error.message || 'Failed to fetch reels' }, { status: 500 });
   }
 }
 

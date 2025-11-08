@@ -1,8 +1,50 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Sidebar from '@/components/Sidebar'
 
 export default function ReportsPage() {
+  const [stats, setStats] = useState({ total: 0, active: 0, articles: 0, reels: 0 })
+  const [topArticles, setTopArticles] = useState<any[]>([])
+  const [topReels, setTopReels] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchReportsData()
+  }, [])
+
+  const fetchReportsData = async () => {
+    try {
+      const [usersRes, newsRes, reelsRes] = await Promise.all([
+        fetch('/api/users'),
+        fetch('/api/news?status=all'),
+        fetch('/api/reels?status=all')
+      ])
+
+      const usersData = await usersRes.json()
+      const newsData = await newsRes.json()
+      const reelsData = await reelsRes.json()
+
+      const users = usersData.users || []
+      const news = newsData.news || []
+      const reels = reelsData.reels || []
+
+      setStats({
+        total: users.length,
+        active: users.filter((u: any) => u.isActive).length,
+        articles: news.length,
+        reels: reels.length
+      })
+
+      setTopArticles(news.sort((a: any, b: any) => (b.views || 0) - (a.views || 0)).slice(0, 10))
+      setTopReels(reels.sort((a: any, b: any) => (b.views || 0) - (a.views || 0)).slice(0, 10))
+    } catch (err) {
+      console.error('Failed to fetch reports data:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div style={styles.container}>
       <Sidebar />
@@ -18,22 +60,22 @@ export default function ReportsPage() {
           <div style={styles.statCard}>
             <div style={styles.iconRed}>👥</div>
             <div style={styles.statLabel}>Total</div>
-            <div style={styles.statValue}>1,234</div>
+            <div style={styles.statValue}>{loading ? '...' : stats.total}</div>
           </div>
           <div style={styles.statCard}>
             <div style={styles.iconRed}>👤</div>
             <div style={styles.statLabel}>Active Users</div>
-            <div style={styles.statValue}>567</div>
+            <div style={styles.statValue}>{loading ? '...' : stats.active}</div>
           </div>
           <div style={styles.statCard}>
             <div style={styles.iconRed}>📄</div>
             <div style={styles.statLabel}>Total Articles</div>
-            <div style={styles.statValue}>89</div>
+            <div style={styles.statValue}>{loading ? '...' : stats.articles}</div>
           </div>
           <div style={styles.statCard}>
             <div style={styles.iconRed}>🎬</div>
             <div style={styles.statLabel}>Total Reels</div>
-            <div style={styles.statValue}>45</div>
+            <div style={styles.statValue}>{loading ? '...' : stats.reels}</div>
           </div>
         </div>
 
@@ -93,24 +135,20 @@ export default function ReportsPage() {
               </tr>
             </thead>
             <tbody>
-              <tr style={styles.tr}>
-                <td style={styles.td}>Breaking News</td>
-                <td style={styles.td}>1,234</td>
-                <td style={styles.td}>567</td>
-                <td style={styles.td}>98</td>
-              </tr>
-              <tr style={styles.tr}>
-                <td style={styles.td}>Tech Innovations</td>
-                <td style={styles.td}>1,000</td>
-                <td style={styles.td}>450</td>
-                <td style={styles.td}>123</td>
-              </tr>
-              <tr style={styles.tr}>
-                <td style={styles.td}>Market Updates</td>
-                <td style={styles.td}>950</td>
-                <td style={styles.td}>400</td>
-                <td style={styles.td}>110</td>
-              </tr>
+              {loading ? (
+                <tr><td colSpan={4} style={{...styles.td, textAlign: 'center'}}>Loading...</td></tr>
+              ) : topArticles.length === 0 ? (
+                <tr><td colSpan={4} style={{...styles.td, textAlign: 'center'}}>No articles found</td></tr>
+              ) : (
+                topArticles.map((article) => (
+                  <tr key={article._id} style={styles.tr}>
+                    <td style={styles.td}>{article.title}</td>
+                    <td style={styles.td}>{article.views || 0}</td>
+                    <td style={styles.td}>{article.likes || 0}</td>
+                    <td style={styles.td}>{article.shares || 0}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -127,24 +165,20 @@ export default function ReportsPage() {
               </tr>
             </thead>
             <tbody>
-              <tr style={styles.tr}>
-                <td style={styles.td}>Viral Dance</td>
-                <td style={styles.td}>5,678</td>
-                <td style={styles.td}>2,345</td>
-                <td style={styles.td}>1,234</td>
-              </tr>
-              <tr style={styles.tr}>
-                <td style={styles.td}>Funny Pets</td>
-                <td style={styles.td}>4,500</td>
-                <td style={styles.td}>2,100</td>
-                <td style={styles.td}>1,000</td>
-              </tr>
-              <tr style={styles.tr}>
-                <td style={styles.td}>Cooking Hacks</td>
-                <td style={styles.td}>4,000</td>
-                <td style={styles.td}>1,800</td>
-                <td style={styles.td}>900</td>
-              </tr>
+              {loading ? (
+                <tr><td colSpan={4} style={{...styles.td, textAlign: 'center'}}>Loading...</td></tr>
+              ) : topReels.length === 0 ? (
+                <tr><td colSpan={4} style={{...styles.td, textAlign: 'center'}}>No reels found</td></tr>
+              ) : (
+                topReels.map((reel) => (
+                  <tr key={reel._id} style={styles.tr}>
+                    <td style={styles.td}>{reel.title}</td>
+                    <td style={styles.td}>{reel.views || 0}</td>
+                    <td style={styles.td}>{reel.likes || 0}</td>
+                    <td style={styles.td}>{reel.comments || 0}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
