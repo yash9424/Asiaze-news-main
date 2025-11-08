@@ -14,13 +14,15 @@ export default function ViewReelPage({ params }: any) {
   const [isMuted, setIsMuted] = useState(true)
   const [isLiked, setIsLiked] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
   const videoRef = React.useRef<HTMLVideoElement>(null)
+  const progressRef = React.useRef<HTMLDivElement>(null)
 
-  const handleMouseDown = () => {
+  const handleVideoMouseDown = () => {
     if (videoRef.current) videoRef.current.pause()
   }
 
-  const handleMouseUp = () => {
+  const handleVideoMouseUp = () => {
     if (videoRef.current) videoRef.current.play()
   }
 
@@ -28,6 +30,42 @@ export default function ViewReelPage({ params }: any) {
     setIsMuted(!isMuted)
     if (videoRef.current) videoRef.current.muted = !isMuted
   }
+
+  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!videoRef.current) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const clickX = e.clientX - rect.left
+    const percentage = clickX / rect.width
+    videoRef.current.currentTime = percentage * duration
+  }
+
+  const handleProgressDrag = (e: React.MouseEvent) => {
+    if (!isDragging || !videoRef.current || !progressRef.current) return
+    const rect = progressRef.current.getBoundingClientRect()
+    const clickX = Math.max(0, Math.min(e.clientX - rect.left, rect.width))
+    const percentage = clickX / rect.width
+    videoRef.current.currentTime = percentage * duration
+  }
+
+  const handleProgressMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true)
+    handleProgressClick(e)
+  }
+
+  const handleProgressMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  React.useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleProgressDrag as any)
+      window.addEventListener('mouseup', handleProgressMouseUp)
+      return () => {
+        window.removeEventListener('mousemove', handleProgressDrag as any)
+        window.removeEventListener('mouseup', handleProgressMouseUp)
+      }
+    }
+  }, [isDragging])
 
   useEffect(() => {
     fetchReel()
@@ -106,11 +144,11 @@ export default function ViewReelPage({ params }: any) {
             </div>
             <div 
               className={styles.videoContent}
-              onMouseDown={handleMouseDown}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-              onTouchStart={handleMouseDown}
-              onTouchEnd={handleMouseUp}
+              onMouseDown={handleVideoMouseDown}
+              onMouseUp={handleVideoMouseUp}
+              onMouseLeave={handleVideoMouseUp}
+              onTouchStart={handleVideoMouseDown}
+              onTouchEnd={handleVideoMouseUp}
             >
               {reel.videoUrl ? (
                 <video 
@@ -143,8 +181,14 @@ export default function ViewReelPage({ params }: any) {
                   <span>Tap to open article</span>
                 </div>
               </div>
-              <div style={{ width: '100%', height: '3px', background: 'rgba(255,255,255,0.3)', borderRadius: '2px', marginTop: '8px', overflow: 'hidden' }}>
-                <div className={styles.progressBar} style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`, height: '100%' }}></div>
+              <div 
+                ref={progressRef}
+                onMouseDown={handleProgressMouseDown}
+                style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.3)', borderRadius: '3px', marginTop: '8px', position: 'relative', cursor: 'pointer' }}
+              >
+                <div className={styles.progressBar} style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`, height: '100%', position: 'relative' }}>
+                  <div style={{ position: 'absolute', right: '-6px', top: '50%', transform: 'translateY(-50%)', width: '12px', height: '12px', borderRadius: '50%', background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.3)', cursor: 'grab' }}></div>
+                </div>
               </div>
             </div>
           </div>
