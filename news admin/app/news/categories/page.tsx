@@ -200,7 +200,31 @@ export default function CategoriesPage() {
               <h2 className={styles.modalTitle}>{editingId ? 'Edit Category' : 'Add New Category'}</h2>
               <div className={styles.formGroup}>
                 <label>Category Name *</label>
-                <input value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="e.g., Politics, Sports" />
+                <input value={formData.name} onChange={async (e) => {
+                  const newName = e.target.value;
+                  setFormData({...formData, name: newName, labels: {...formData.labels, english: newName}});
+                  
+                  if (newName.trim()) {
+                    try {
+                      const res = await fetch('/api/translate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: newName })
+                      });
+                      const data = await res.json();
+                      setFormData(prev => ({
+                        ...prev,
+                        labels: {
+                          english: newName,
+                          hindi: data.hindi,
+                          bengali: data.bengali
+                        }
+                      }));
+                    } catch (error) {
+                      console.error('Translation failed:', error);
+                    }
+                  }
+                }} placeholder="e.g., Politics, Sports" />
               </div>
               <div className={styles.formGroup}>
                 <label>Language Labels *</label>
