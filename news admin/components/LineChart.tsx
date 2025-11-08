@@ -1,14 +1,14 @@
-export default function LineChart() {
+export default function LineChart({ data }: { data: number }) {
+  const points = Array.from({ length: 12 }, (_, i) => {
+    const x = 20 + i * 30
+    const y = 180 - (Math.random() * data * 0.5)
+    return `${x},${y}`
+  }).join(' ')
+
   return (
     <svg width="100%" height="220" viewBox="0 0 400 220" style={{ display: 'block' }}>
       <polyline
-        points="20,80 50,60 80,90 110,50 140,70 170,100 200,80 230,120 260,140 290,110 320,130 350,150"
-        fill="none"
-        stroke="#b0b0b0"
-        strokeWidth="2"
-      />
-      <polyline
-        points="20,100 50,80 80,70 110,60 140,90 170,70 200,100 230,120 260,180 290,160 320,170 350,190"
+        points={points}
         fill="none"
         stroke="#e31e3a"
         strokeWidth="3"

@@ -23,12 +23,13 @@ export async function GET(req: NextRequest) {
     const news = await News.find(query)
       .populate('category')
       .populate('tags')
-      .populate('author', 'name email')
+      .lean()
       .sort({ publishedAt: -1, createdAt: -1 });
 
     return NextResponse.json({ news });
-  } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch news' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error fetching news:', error);
+    return NextResponse.json({ error: error.message || 'Failed to fetch news' }, { status: 500 });
   }
 }
 
