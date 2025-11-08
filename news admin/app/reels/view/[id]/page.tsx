@@ -15,6 +15,7 @@ export default function ViewReelPage({ params }: any) {
   const [isLiked, setIsLiked] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+  const [showScrubber, setShowScrubber] = useState(false)
   const videoRef = React.useRef<HTMLVideoElement>(null)
   const progressRef = React.useRef<HTMLDivElement>(null)
 
@@ -49,11 +50,13 @@ export default function ViewReelPage({ params }: any) {
 
   const handleProgressMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true)
+    setShowScrubber(true)
     handleProgressClick(e)
   }
 
   const handleProgressMouseUp = () => {
     setIsDragging(false)
+    setTimeout(() => setShowScrubber(false), 1000)
   }
 
   React.useEffect(() => {
@@ -186,8 +189,10 @@ export default function ViewReelPage({ params }: any) {
                 onMouseDown={handleProgressMouseDown}
                 style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.3)', borderRadius: '3px', marginTop: '8px', position: 'relative', cursor: 'pointer' }}
               >
-                <div className={styles.progressBar} style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`, height: '100%', position: 'relative' }}>
-                  <div style={{ position: 'absolute', right: '-6px', top: '50%', transform: 'translateY(-50%)', width: '12px', height: '12px', borderRadius: '50%', background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.3)', cursor: 'grab' }}></div>
+                <div className={styles.progressBar} style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`, height: '100%', position: 'relative', transition: isDragging ? 'none' : 'width 0.1s linear' }}>
+                  {showScrubber && (
+                    <div style={{ position: 'absolute', right: '-6px', top: '50%', transform: 'translateY(-50%)', width: '12px', height: '12px', borderRadius: '50%', background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.3)', cursor: 'grab' }}></div>
+                  )}
                 </div>
               </div>
             </div>
