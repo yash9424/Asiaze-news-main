@@ -8,6 +8,7 @@ import { useRouter, usePathname } from 'next/navigation'
 export default function Sidebar() {
   const [manageNewsOpen, setManageNewsOpen] = useState(true)
   const [manageReelsOpen, setManageReelsOpen] = useState(false)
+  const [manageStoriesOpen, setManageStoriesOpen] = useState(false)
   const [usersOpen, setUsersOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [walletRewardsOpen, setWalletRewardsOpen] = useState(false)
@@ -47,6 +48,19 @@ export default function Sidebar() {
             <div style={styles.submenu}>
               <Link href="/reels/add" style={styles.submenuItem}>Add Reel</Link>
               <Link href="/reels" style={styles.submenuItem}>All Reels List</Link>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div style={styles.menuItem}>
+            <Link href="/stories" style={styles.menuText}>Manage Stories</Link>
+            <span style={styles.arrow} onClick={() => setManageStoriesOpen(!manageStoriesOpen)}>{manageStoriesOpen ? '▼' : '▶'}</span>
+          </div>
+          {manageStoriesOpen && (
+            <div style={styles.submenu}>
+              <Link href="/stories/add" style={styles.submenuItem}>Add Story</Link>
+              <Link href="/stories" style={styles.submenuItem}>All Stories List</Link>
             </div>
           )}
         </div>
