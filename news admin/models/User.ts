@@ -10,14 +10,7 @@ const UserSchema = new mongoose.Schema({
     language: { type: String, default: 'EN' },
     categories: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Category' }]
   },
-  wallet: {
-    balance: { type: Number, default: 0 },
-    savePoints: { type: Number, default: 0 },
-    sharePoints: { type: Number, default: 0 },
-    referralPoints: { type: Number, default: 0 },
-    transactions: { type: Number, default: 0 },
-    referrals: { type: Number, default: 0 }
-  },
+  walletBalance: { type: Number, default: 0 },
   isActive: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }

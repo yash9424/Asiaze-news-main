@@ -14,22 +14,17 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
   
-  if (!user.wallet) {
-    user.wallet = { balance: 0, savePoints: 0, sharePoints: 0, referralPoints: 0, transactions: 0, referrals: 0 };
-  }
-  
-  const oldBalance = user.wallet.balance;
+  const oldBalance = user.walletBalance || 0;
   
   if (action === 'increase') {
-    user.wallet.balance += amount;
+    user.walletBalance = oldBalance + amount;
   } else if (action === 'decrease') {
-    user.wallet.balance = Math.max(0, user.wallet.balance - amount);
+    user.walletBalance = Math.max(0, oldBalance - amount);
   }
   
-  user.wallet.transactions += 1;
   await user.save();
   
-  console.log(`✅ Wallet updated: ${oldBalance} → ${user.wallet.balance} (saved to DB)`);
+  console.log(`✅ Wallet updated: ${oldBalance} → ${user.walletBalance} (saved to DB)`);
   
-  return NextResponse.json({ success: true, balance: user.wallet.balance });
+  return NextResponse.json({ success: true, balance: user.walletBalance });
 }

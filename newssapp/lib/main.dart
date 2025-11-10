@@ -2501,12 +2501,22 @@ class _RewardScreenState extends State<RewardScreen> {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('userId');
       
+      print('🔍 Fetching wallet for userId: $userId');
+      
       if (userId != null && userId.isNotEmpty) {
-        final user = await ApiService.getUserProfile(userId);
+        final response = await ApiService.getUserProfile(userId);
         final rewards = await ApiService.getRewards();
         
+        print('📦 User data: $response');
+        
+        // Extract user from response
+        final user = response['user'] ?? response;
+        final walletBalance = user['walletBalance'] ?? 0;
+        
+        print('💰 Wallet balance: $walletBalance');
+        
         setState(() {
-          _points = user['wallet']?['balance'] ?? 0;
+          _points = walletBalance is int ? walletBalance : int.tryParse(walletBalance.toString()) ?? 0;
           _rewards = rewards.where((r) => r['available'] == true).toList();
           _loading = false;
         });
@@ -2514,6 +2524,7 @@ class _RewardScreenState extends State<RewardScreen> {
         setState(() => _loading = false);
       }
     } catch (e) {
+      print('❌ Error fetching wallet: $e');
       setState(() => _loading = false);
     }
   }
