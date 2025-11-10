@@ -10,6 +10,7 @@ export default function Sidebar() {
   const [manageReelsOpen, setManageReelsOpen] = useState(false)
   const [usersOpen, setUsersOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [walletRewardsOpen, setWalletRewardsOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
 
@@ -72,6 +73,19 @@ export default function Sidebar() {
             <div style={styles.submenu}>
               <Link href="/notifications/push" style={styles.submenuItem}>Push Notifications</Link>
               <Link href="/notifications/past" style={styles.submenuItem}>Past Notifications</Link>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div style={styles.menuItem}>
+            <Link href="/wallet-rewards" style={styles.menuText}>Wallet & Reward</Link>
+            <span style={styles.arrow} onClick={() => setWalletRewardsOpen(!walletRewardsOpen)}>{walletRewardsOpen ? '▼' : '▶'}</span>
+          </div>
+          {walletRewardsOpen && (
+            <div style={styles.submenu}>
+              <Link href="/wallet-rewards/wallet" style={styles.submenuItem}>Wallet Management</Link>
+              <Link href="/wallet-rewards/rewards" style={styles.submenuItem}>Reward Management</Link>
             </div>
           )}
         </div>
