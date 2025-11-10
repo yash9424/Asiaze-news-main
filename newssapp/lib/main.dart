@@ -395,15 +395,31 @@ class _LoginScreenState extends State<LoginScreen> {
                             
                             // Save user data
                             final user = loginData['user'];
-                            await prefs.setString('userId', user['id'].toString());
+                            print('Login response user data: $user');
+                            
+                            // Try both 'id' and '_id' fields
+                            final userId = user['_id']?.toString() ?? user['id']?.toString() ?? '';
+                            await prefs.setString('userId', userId);
                             await prefs.setString('userName', user['name'].toString());
                             await prefs.setString('userEmail', user['email'].toString());
+                            
+                            print('Saved userId: $userId');
                             
                             if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('Login successful!')),
                             );
-                            Navigator.of(context).pushReplacementNamed(PreferencesScreen.routeName);
+                            
+                            // Check if preferences already set
+                            final language = prefs.getString('language');
+                            final interests = prefs.getStringList('interests');
+                            final hasPreferences = language != null && interests != null && interests.isNotEmpty;
+                            
+                            if (hasPreferences) {
+                              Navigator.of(context).pushReplacementNamed(MainNav.routeName);
+                            } else {
+                              Navigator.of(context).pushReplacementNamed(PreferencesScreen.routeName);
+                            }
                           } catch (e) {
                             if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -566,7 +582,17 @@ class _VerifyScreenState extends State<VerifyScreen> {
                           final prefs = await SharedPreferences.getInstance();
                           await prefs.setBool('isLoggedIn', true);
                           if (!mounted) return;
-                          Navigator.of(context).pushReplacementNamed(PreferencesScreen.routeName);
+                          
+                          // Check if preferences already set
+                          final language = prefs.getString('language');
+                          final interests = prefs.getStringList('interests');
+                          final hasPreferences = language != null && interests != null && interests.isNotEmpty;
+                          
+                          if (hasPreferences) {
+                            Navigator.of(context).pushReplacementNamed(MainNav.routeName);
+                          } else {
+                            Navigator.of(context).pushReplacementNamed(PreferencesScreen.routeName);
+                          }
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Invalid OTP! Use 123456')),
@@ -1720,19 +1746,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _fetchCategories() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final interests = prefs.getStringList('interests') ?? [];
-      
       final categories = await ApiService.getCategories();
-      final allCats = List<Map<String, dynamic>>.from(categories);
-      
       setState(() {
-        _allCategories = allCats;
-        if (interests.isEmpty) {
-          _userCategories = allCats;
-        } else {
-          _userCategories = allCats.where((c) => interests.contains(c['name'].toString())).toList();
-        }
+        _allCategories = List<Map<String, dynamic>>.from(categories);
         _loading = false;
       });
     } catch (e) {
@@ -1754,7 +1770,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final displayCategories = [
       {'name': 'My Feed', '_id': ''},
       {'name': 'Videos', '_id': 'videos'},
-      ..._userCategories,
+      ..._allCategories,
     ];
     
     return DefaultTabController(
@@ -2084,10 +2100,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const Divider(),
-          const ListTile(
-            leading: Icon(Icons.list),
-            title: Text('Category Preferences'),
-            trailing: Icon(Icons.chevron_right),
+          ListTile(
+            leading: Icon(Icons.list, color: red),
+            title: const Text('Category Preferences'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const CategoryPreferencesScreen()),
+              );
+            },
           ),
           SwitchListTile(
             value: _notif,
@@ -2123,7 +2144,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     borderRadius: BorderRadius.circular(24),
                   ),
                 ),
-                onPressed: () {},
+                onPressed: () async {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('isLoggedIn', false);
+                  await prefs.remove('userId');
+                  await prefs.remove('userName');
+                  await prefs.remove('userEmail');
+                  if (!context.mounted) return;
+                  Navigator.of(context).pushNamedAndRemoveUntil(LoginScreen.routeName, (route) => false);
+                },
                 child: const Text('Logout'),
               ),
             ),
@@ -2491,16 +2520,50 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                       ),
                     ),
                     onPressed: () async {
+                      if (_selected.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please select at least one interest')),
+                        );
+                        return;
+                      }
+                      
                       final prefs = await SharedPreferences.getInstance();
-                      await prefs.setString('language', _lang);
-                      await prefs.setStringList('interests', _selected.toList());
+                      final userId = prefs.getString('userId');
                       
                       // Save category IDs for filtering
                       final selectedIds = _categories
                           .where((c) => _selected.contains(c['name'].toString()))
                           .map((c) => c['_id'].toString())
                           .toList();
+                      
+                      // Save to local storage
+                      await prefs.setString('language', _lang);
+                      await prefs.setStringList('interests', _selected.toList());
                       await prefs.setStringList('categoryIds', selectedIds);
+                      
+                      print('Saved preferences - Language: $_lang, Interests: ${_selected.toList()}, IDs: $selectedIds');
+                      
+                      // Save to backend if userId exists
+                      if (userId != null && userId.isNotEmpty) {
+                        try {
+                          print('Updating backend with userId: $userId, language: $_lang, categoryIds: $selectedIds');
+                          final result = await ApiService.updateUserPreferences(userId, _lang, selectedIds);
+                          print('Backend preferences updated successfully: $result');
+                          
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Preferences saved successfully!')),
+                          );
+                        } catch (e) {
+                          print('Failed to update backend preferences: $e');
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Warning: Could not sync to server: $e')),
+                          );
+                        }
+                      } else {
+                        print('No userId found, skipping backend update');
+                      }
                       
                       if (!mounted) return;
                       Navigator.of(context).pushReplacementNamed(MainNav.routeName);

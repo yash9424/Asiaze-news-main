@@ -86,4 +86,24 @@ class ApiService {
       throw Exception('Failed to load categories');
     }
   }
+
+  // Update user preferences
+  static Future<Map<String, dynamic>> updateUserPreferences(String userId, String language, List<String> categoryIds) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/users/$userId'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'preferences': {
+          'language': language,
+          'categories': categoryIds,
+        }
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to update preferences');
+    }
+  }
 }
