@@ -1155,9 +1155,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const Divider(height: 1),
           ListTile(
             leading: Icon(Icons.bookmark, color: red),
-            title: const Text('Saved Articles'),
+            title: const Text('Saved'),
+            trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SavedArticlesScreen()));
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SavedScreen()));
             },
           ),
           const Divider(height: 1),
@@ -1572,6 +1573,11 @@ class _VideoPageState extends State<_VideoPage> {
                 onTap: () {
                   setState(() {
                     _saved = !_saved;
+                    SavedReelsStore.toggle(SavedReel(
+                      url: item.url,
+                      title: item.title,
+                      thumbnail: item.image,
+                    ));
                   });
                 },
               ),
@@ -2258,8 +2264,161 @@ class SavedArticlesStore {
   }
 }
 
-class SavedArticlesScreen extends StatelessWidget {
-  const SavedArticlesScreen({super.key});
+// Combined Saved Screen with tabs
+class SavedScreen extends StatelessWidget {
+  const SavedScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final red = AsiazeApp.primaryRed;
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.of(context).maybePop()),
+          title: const Text('Saved'),
+          centerTitle: true,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          elevation: 0.5,
+          bottom: TabBar(
+            labelColor: red,
+            unselectedLabelColor: Colors.black54,
+            indicatorColor: red,
+            tabs: const [
+              Tab(text: 'Articles'),
+              Tab(text: 'Reels'),
+            ],
+          ),
+        ),
+        body: const TabBarView(
+          children: [
+            SavedArticlesTab(),
+            SavedReelsTab(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class SavedReel {
+  final String url;
+  final String title;
+  final String thumbnail;
+  const SavedReel({required this.url, required this.title, required this.thumbnail});
+}
+
+class SavedReelsStore {
+  static final ValueNotifier<List<SavedReel>> saved = ValueNotifier<List<SavedReel>>([]);
+  static bool isSavedUrl(String url) => saved.value.any((e) => e.url == url);
+  static void toggle(SavedReel r) {
+    final list = List<SavedReel>.from(saved.value);
+    final idx = list.indexWhere((e) => e.url == r.url);
+    if (idx >= 0) {
+      list.removeAt(idx);
+    } else {
+      list.insert(0, r);
+    }
+    saved.value = list;
+  }
+}
+
+class SavedReelsTab extends StatelessWidget {
+  const SavedReelsTab({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final red = AsiazeApp.primaryRed;
+    return ValueListenableBuilder<List<SavedReel>>(
+      valueListenable: SavedReelsStore.saved,
+      builder: (context, list, _) {
+        if (list.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.videocam_off, size: 64, color: Colors.grey.shade400),
+                const SizedBox(height: 16),
+                const Text('No saved reels yet', style: TextStyle(color: Colors.black54)),
+                const SizedBox(height: 8),
+                Text('Save reels by tapping the bookmark icon.', style: TextStyle(color: Colors.black45)),
+              ],
+            ),
+          );
+        }
+        return GridView.builder(
+          padding: const EdgeInsets.all(16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.7,
+          ),
+          itemCount: list.length,
+          itemBuilder: (context, i) {
+            final r = list[i];
+            return GestureDetector(
+              onTap: () {},
+              child: Stack(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                            ),
+                            child: Icon(Icons.play_circle_outline, size: 48, color: Colors.white),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            r.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: GestureDetector(
+                      onTap: () => SavedReelsStore.toggle(r),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.bookmark, color: Colors.white, size: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class SavedArticlesTab extends StatelessWidget {
+  const SavedArticlesTab({super.key});
 
   Widget _imageWidget(String image) {
     if (image.startsWith('asset:')) {
@@ -2273,42 +2432,24 @@ class SavedArticlesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final red = AsiazeApp.primaryRed;
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.of(context).maybePop()),
-        title: const Text('Saved Articles'),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0.5,
-      ),
-      body: ValueListenableBuilder<List<SavedArticle>>(
-        valueListenable: SavedArticlesStore.saved,
-        builder: (context, list, _) {
+    return ValueListenableBuilder<List<SavedArticle>>(
+      valueListenable: SavedArticlesStore.saved,
+      builder: (context, list, _) {
           if (list.isEmpty) {
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
+            return Center(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Image.asset(
-                    'refranceimages/4f52f4f362aa7270533b2fd93039fc712e5cc169.png',
-                    height: 80,
-                    alignment: Alignment.centerLeft,
-                  ),
-                  const SizedBox(height: 12),
+                  Icon(Icons.bookmark_border, size: 64, color: Colors.grey.shade400),
+                  const SizedBox(height: 16),
                   const Text(
                     'No saved articles yet',
-                    style: TextStyle(color: Colors.black54),
-                    textAlign: TextAlign.left,
+                    style: TextStyle(color: Colors.black54, fontSize: 16),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Text(
                     'Save articles by tapping the bookmark icon.',
-                    style: TextStyle(color: Colors.black45),
+                    style: TextStyle(color: Colors.black45, fontSize: 14),
                   ),
                 ],
               ),
@@ -2360,8 +2501,7 @@ class SavedArticlesScreen extends StatelessWidget {
             },
           );
         },
-      ),
-    );
+      );
   }
 }
 
