@@ -386,10 +386,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           setState(() => _loading = true);
 
                           try {
+                            print('🔐 Attempting login with email: ${_emailCtrl.text}');
                             final loginData = await ApiService.login(
                               _emailCtrl.text,
                               _passCtrl.text,
                             );
+                            print('✅ Login successful: $loginData');
                             
                             final prefs = await SharedPreferences.getInstance();
                             await prefs.setBool('isLoggedIn', true);
@@ -1143,6 +1145,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 16),
           const Divider(),
           ListTile(
+            leading: Icon(Icons.card_giftcard, color: red),
+            title: const Text('Reward'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Reward - Coming Soon')),
+              );
+            },
+          ),
+          const Divider(height: 1),
+          ListTile(
             leading: Icon(Icons.bookmark, color: red),
             title: const Text('Saved Articles'),
             onTap: () {
@@ -1258,42 +1271,49 @@ class _VideosScreenState extends State<VideosScreen> {
 
   Future<void> _fetchReels() async {
     try {
+      print('🎬 Fetching reels from API...');
       final prefs = await SharedPreferences.getInstance();
       final categoryIds = prefs.getStringList('categoryIds') ?? [];
       
       List<dynamic> reels;
       if (categoryIds.isEmpty) {
+        print('📡 Fetching all reels (no category filter)');
         reels = await ApiService.getReels();
       } else {
+        print('📡 Fetching reels for categories: $categoryIds');
         reels = [];
         for (final id in categoryIds) {
           final categoryReels = await ApiService.getReels(categoryId: id);
           reels.addAll(categoryReels);
         }
       }
+      print('✅ Fetched ${reels.length} reels from API');
+      if (reels.isNotEmpty) {
+        print('📹 First reel: ${reels[0]['title']} - ${reels[0]['videoUrl']}');
+      }
 
       if (reels.isEmpty) {
         setState(() {
-          _items = [
-            const _VideoModel(
-              url: 'refranceimages/AQN826RaKjrcT-4DxGI3wBmNuW2dn1xviUk10mDKiW0coGQW_BlbjZyBI5cRkGxiUWjaoPPVSGuyugR23yMrc435BFNbFaD71fwAdmU.mp4',
-              image: 'refranceimages/c049d488ea53162e319b73ae144cac43efe0c895.png',
-              title: 'Breaking News Headline',
-              source: 'Source Name',
-              timeAgo: '5 mins ago',
-            ),
-          ];
+          _items = [];
           _loading = false;
         });
       } else {
         setState(() {
-          _items = reels.map((r) => _VideoModel(
-            url: r['videoUrl'] ?? '',
-            image: r['thumbnail'] ?? 'refranceimages/c049d488ea53162e319b73ae144cac43efe0c895.png',
-            title: r['title'] ?? 'News Reel',
-            source: 'ASIAZE',
-            timeAgo: _formatDate(r['publishedAt']),
-          )).toList();
+          _items = reels.map((r) {
+            String videoUrl = r['videoUrl'] ?? '';
+            // Convert relative URL to absolute URL
+            if (videoUrl.startsWith('/uploads/')) {
+              videoUrl = '${ApiService.baseServerUrl}$videoUrl';
+            }
+            print('📹 Video URL: $videoUrl');
+            return _VideoModel(
+              url: videoUrl,
+              image: r['thumbnail'] ?? 'refranceimages/c049d488ea53162e319b73ae144cac43efe0c895.png',
+              title: r['title'] ?? 'News Reel',
+              source: 'ASIAZE',
+              timeAgo: _formatDate(r['publishedAt']),
+            );
+          }).toList();
           _loading = false;
         });
       }
@@ -1319,16 +1339,9 @@ class _VideosScreenState extends State<VideosScreen> {
         }
       });
     } catch (e) {
+      print('Error fetching reels: $e');
       setState(() {
-        _items = [
-          const _VideoModel(
-            url: 'refranceimages/AQN826RaKjrcT-4DxGI3wBmNuW2dn1xviUk10mDKiW0coGQW_BlbjZyBI5cRkGxiUWjaoPPVSGuyugR23yMrc435BFNbFaD71fwAdmU.mp4',
-            image: 'refranceimages/c049d488ea53162e319b73ae144cac43efe0c895.png',
-            title: 'Breaking News Headline',
-            source: 'Source Name',
-            timeAgo: '5 mins ago',
-          ),
-        ];
+        _items = [];
         _loading = false;
       });
     }
@@ -1373,28 +1386,51 @@ class _VideosScreenState extends State<VideosScreen> {
     final red = AsiazeApp.primaryRed;
     return Scaffold(
       backgroundColor: Colors.black,
-      body: PageView.builder(
-        controller: _pageController,
-        scrollDirection: Axis.vertical,
-        itemCount: _items.length,
-        onPageChanged: _onPageChanged,
-        itemBuilder: (context, index) {
-          final item = _items[index];
-          final controller = _controllers[index];
-          return _VideoPage(
-            controller: controller,
-            item: item,
-            red: red,
-            muted: _muted,
-            onToggleMute: () {
-              setState(() {
-                _muted = !_muted;
-                controller.setVolume(_muted ? 0 : 1);
-              });
-            },
-          );
-        },
-      ),
+      body: _loading
+          ? const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            )
+          : _items.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.videocam_off, size: 64, color: Colors.grey.shade600),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No reels available',
+                        style: TextStyle(color: Colors.grey.shade400, fontSize: 18),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Check back later for new content',
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                      ),
+                    ],
+                  ),
+                )
+              : PageView.builder(
+                  controller: _pageController,
+                  scrollDirection: Axis.vertical,
+                  itemCount: _items.length,
+                  onPageChanged: _onPageChanged,
+                  itemBuilder: (context, index) {
+                    final item = _items[index];
+                    final controller = _controllers[index];
+                    return _VideoPage(
+                      controller: controller,
+                      item: item,
+                      red: red,
+                      muted: _muted,
+                      onToggleMute: () {
+                        setState(() {
+                          _muted = !_muted;
+                          controller.setVolume(_muted ? 0 : 1);
+                        });
+                      },
+                    );
+                  },
+                ),
     );
   }
 }

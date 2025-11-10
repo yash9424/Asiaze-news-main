@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 
 class ApiService {
   static const String baseUrl = 'http://localhost:3000/api';
+  static const String baseServerUrl = 'http://localhost:3000';
 
   // Login
   static Future<Map<String, dynamic>> login(String email, String password) async {
