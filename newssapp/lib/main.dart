@@ -2252,13 +2252,23 @@ class SavedArticle {
 class SavedArticlesStore {
   static final ValueNotifier<List<SavedArticle>> saved = ValueNotifier<List<SavedArticle>>([]);
   static bool isSavedTitle(String title) => saved.value.any((e) => e.title == title);
-  static void toggle(SavedArticle a) {
+  static void toggle(SavedArticle a) async {
     final list = List<SavedArticle>.from(saved.value);
     final idx = list.indexWhere((e) => e.title == a.title);
     if (idx >= 0) {
       list.removeAt(idx);
     } else {
       list.insert(0, a);
+      // Award points for saving
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final userId = prefs.getString('userId');
+        if (userId != null && userId.isNotEmpty) {
+          await ApiService.awardPoints(userId, 5);
+        }
+      } catch (e) {
+        print('Failed to award points: $e');
+      }
     }
     saved.value = list;
   }
@@ -2313,13 +2323,23 @@ class SavedReel {
 class SavedReelsStore {
   static final ValueNotifier<List<SavedReel>> saved = ValueNotifier<List<SavedReel>>([]);
   static bool isSavedUrl(String url) => saved.value.any((e) => e.url == url);
-  static void toggle(SavedReel r) {
+  static void toggle(SavedReel r) async {
     final list = List<SavedReel>.from(saved.value);
     final idx = list.indexWhere((e) => e.url == r.url);
     if (idx >= 0) {
       list.removeAt(idx);
     } else {
       list.insert(0, r);
+      // Award points for saving
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final userId = prefs.getString('userId');
+        if (userId != null && userId.isNotEmpty) {
+          await ApiService.awardPoints(userId, 5);
+        }
+      } catch (e) {
+        print('Failed to award points: $e');
+      }
     }
     saved.value = list;
   }

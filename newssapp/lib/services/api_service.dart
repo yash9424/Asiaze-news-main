@@ -117,4 +117,16 @@ class ApiService {
       throw Exception('Failed to load rewards');
     }
   }
+
+  // Award points for saving content
+  static Future<void> awardPoints(String userId, int points) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/wallet/$userId'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'action': 'increase', 'amount': points}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to award points');
+    }
+  }
 }
