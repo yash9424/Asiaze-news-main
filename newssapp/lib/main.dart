@@ -2478,8 +2478,45 @@ class NewsCard extends StatelessWidget {
 }
 
 // ---------------- Reward Screen ----------------
-class RewardScreen extends StatelessWidget {
+class RewardScreen extends StatefulWidget {
   const RewardScreen({super.key});
+
+  @override
+  State<RewardScreen> createState() => _RewardScreenState();
+}
+
+class _RewardScreenState extends State<RewardScreen> {
+  int _points = 0;
+  List<dynamic> _rewards = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId');
+      
+      if (userId != null && userId.isNotEmpty) {
+        final user = await ApiService.getUserProfile(userId);
+        final rewards = await ApiService.getRewards();
+        
+        setState(() {
+          _points = user['wallet']?['balance'] ?? 0;
+          _rewards = rewards.where((r) => r['available'] == true).toList();
+          _loading = false;
+        });
+      } else {
+        setState(() => _loading = false);
+      }
+    } catch (e) {
+      setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2497,114 +2534,110 @@ class RewardScreen extends StatelessWidget {
         foregroundColor: Colors.black,
         elevation: 0.5,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 24),
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const SizedBox(height: 24),
                   Container(
-                    width: 80,
-                    height: 80,
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: red,
-                      shape: BoxShape.circle,
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    child: const Icon(Icons.card_giftcard, color: Colors.white, size: 40),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: red,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.card_giftcard, color: Colors.white, size: 40),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          '$_points Points',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                            color: red,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Share news or refer friends to earn more\npoints.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.black87, fontSize: 14),
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(height: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: SizedBox(
+                      height: 50,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: red,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                        ),
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Invite feature coming soon!')),
+                          );
+                        },
+                        child: const Text('Invite Friends', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'Available Rewards',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ..._rewards.map((r) => _RewardCard(
+                        icon: '🎁',
+                        title: r['name'] ?? '',
+                        points: '${r['points']} pts',
+                        red: red,
+                        isAvailable: _points >= (r['points'] ?? 0),
+                      )),
                   const SizedBox(height: 16),
-                  Text(
-                    '520 Points',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: red,
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'Points are verified through your share/referral activity.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Share news or refer friends to earn more\npoints.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.black87, fontSize: 14),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: SizedBox(
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: red,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                  ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Invite feature coming soon!')),
-                    );
-                  },
-                  child: const Text('Invite Friends', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Available Rewards',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            _RewardCard(
-              icon: '🎁',
-              title: '₹100 Amazon Gift Card',
-              points: '500 pts',
-              red: red,
-            ),
-            _RewardCard(
-              icon: '📱',
-              title: '₹150 Google Play Voucher',
-              points: '700 pts',
-              red: red,
-              isAvailable: false,
-            ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                'Points are verified through your share/referral activity.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

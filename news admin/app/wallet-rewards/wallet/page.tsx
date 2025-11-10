@@ -55,16 +55,21 @@ export default function WalletManagement() {
   const handleAdjustPoints = async (action: 'increase' | 'decrease') => {
     if (!selectedUser || adjustAmount <= 0) return;
     try {
+      console.log('Adjusting points:', { userId: selectedUser.id, action, amount: adjustAmount });
       const res = await fetch(`/api/wallet/${selectedUser.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, amount: adjustAmount })
       });
+      const data = await res.json();
+      console.log('Response:', data);
       if (res.ok) {
-        alert('Points adjusted successfully');
+        alert(`Points adjusted successfully! New balance: ${data.balance}`);
         setShowAdjustModal(false);
         setAdjustAmount(0);
         fetchWalletData();
+      } else {
+        alert(`Failed: ${data.error || 'Unknown error'}`);
       }
     } catch (err) {
       console.error('Failed to adjust points:', err);

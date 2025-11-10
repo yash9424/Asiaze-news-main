@@ -107,4 +107,14 @@ class ApiService {
       throw Exception('Failed to update preferences');
     }
   }
+
+  // Get rewards
+  static Future<List<dynamic>> getRewards() async {
+    final response = await http.get(Uri.parse('$baseUrl/rewards'));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body)['rewards'] ?? [];
+    } else {
+      throw Exception('Failed to load rewards');
+    }
+  }
 }

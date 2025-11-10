@@ -2,19 +2,21 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Reward from '@/models/Reward';
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   await dbConnect();
+  const { id } = await params;
   const body = await req.json();
-  const reward = await Reward.findByIdAndUpdate(params.id, body, { new: true });
+  const reward = await Reward.findByIdAndUpdate(id, body, { new: true });
   if (!reward) {
     return NextResponse.json({ error: 'Reward not found' }, { status: 404 });
   }
   return NextResponse.json(reward);
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   await dbConnect();
-  const reward = await Reward.findByIdAndDelete(params.id);
+  const { id } = await params;
+  const reward = await Reward.findByIdAndDelete(id);
   if (!reward) {
     return NextResponse.json({ error: 'Reward not found' }, { status: 404 });
   }
