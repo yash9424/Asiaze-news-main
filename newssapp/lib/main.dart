@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:ui' as ui;
 import 'services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'category_preferences_screen.dart';
 
 void main() {
   runApp(const AsiazeApp());
@@ -2100,15 +2101,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const Divider(),
-          ListTile(
-            leading: Icon(Icons.list, color: red),
-            title: const Text('Category Preferences'),
-            trailing: const Icon(Icons.chevron_right),
+          InkWell(
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const CategoryPreferencesScreen()),
               );
             },
+            child: ListTile(
+              leading: Icon(Icons.list, color: red),
+              title: const Text('Category Preferences'),
+              trailing: const Icon(Icons.chevron_right),
+            ),
           ),
           SwitchListTile(
             value: _notif,
@@ -2116,20 +2119,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Notifications'),
             secondary: const Icon(Icons.notifications),
           ),
-          const ListTile(
-            leading: Icon(Icons.description),
-            title: Text('Privacy Policy'),
-            trailing: Icon(Icons.chevron_right),
+          ListTile(
+            leading: const Icon(Icons.description),
+            title: const Text('Privacy Policy'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Privacy Policy - Coming Soon')),
+              );
+            },
           ),
-          const ListTile(
-            leading: Icon(Icons.description_outlined),
-            title: Text('Terms & Conditions'),
-            trailing: Icon(Icons.chevron_right),
+          ListTile(
+            leading: const Icon(Icons.description_outlined),
+            title: const Text('Terms & Conditions'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Terms & Conditions - Coming Soon')),
+              );
+            },
           ),
-          const ListTile(
-            leading: Icon(Icons.info_outline),
-            title: Text('About Us'),
-            trailing: Icon(Icons.chevron_right),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('About Us'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('About Us - Coming Soon')),
+              );
+            },
           ),
           const SizedBox(height: 16),
           Padding(
