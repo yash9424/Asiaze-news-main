@@ -151,6 +151,19 @@
   margin-top: 40px;
   justify-content: flex-end;
 }
+.publishBtn {
+  padding: 14px 32px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 24px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+}
+.publishBtn:hover {
+  background: #218838;
+}
 .editBtn {
   padding: 14px 32px;
   background: #e31e3a;

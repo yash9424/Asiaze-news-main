@@ -90,6 +90,31 @@ export default function ViewReelPage({ params }: any) {
     }
   }
 
+  const handlePublish = async () => {
+    if (!confirm('Publish this reel?')) return
+    
+    try {
+      const res = await fetch(`/api/reels/${params.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'published',
+          publishedAt: new Date().toISOString()
+        })
+      })
+      
+      if (res.ok) {
+        alert('Reel published successfully!')
+        fetchReel()
+      } else {
+        alert('Failed to publish reel')
+      }
+    } catch (err) {
+      console.error('Publish error:', err)
+      alert('Error publishing reel')
+    }
+  }
+
   if (loading) return (
     <div style={{ display: 'flex' }}>
       <Sidebar />
@@ -255,6 +280,9 @@ export default function ViewReelPage({ params }: any) {
           </div>
 
           <div className={styles.buttonRow}>
+            {reel.status === 'draft' && (
+              <button className={styles.publishBtn} onClick={handlePublish}>Publish Reel</button>
+            )}
             <button className={styles.editBtn} onClick={() => router.push(`/reels/edit/${params.id}`)}>Edit Reel</button>
             <button className={styles.backBtn} onClick={() => router.push('/reels')}>Back to All Reels</button>
           </div>
