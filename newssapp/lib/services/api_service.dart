@@ -48,10 +48,17 @@ class ApiService {
   }
 
   // Get all news
-  static Future<List<dynamic>> getNews({String? categoryId}) async {
+  static Future<List<dynamic>> getNews({String? categoryId, String? language}) async {
     String url = '$baseUrl/news';
+    List<String> params = [];
     if (categoryId != null && categoryId.isNotEmpty) {
-      url += '?category=$categoryId';
+      params.add('category=$categoryId');
+    }
+    if (language != null && language.isNotEmpty) {
+      params.add('language=$language');
+    }
+    if (params.isNotEmpty) {
+      url += '?${params.join('&')}';
     }
     final response = await http.get(Uri.parse(url));
 
@@ -63,10 +70,17 @@ class ApiService {
   }
 
   // Get all reels
-  static Future<List<dynamic>> getReels({String? categoryId}) async {
+  static Future<List<dynamic>> getReels({String? categoryId, String? language}) async {
     String url = '$baseUrl/reels';
+    List<String> params = [];
     if (categoryId != null && categoryId.isNotEmpty) {
-      url += '?category=$categoryId';
+      params.add('category=$categoryId');
+    }
+    if (language != null && language.isNotEmpty) {
+      params.add('language=$language');
+    }
+    if (params.isNotEmpty) {
+      url += '?${params.join('&')}';
     }
     final response = await http.get(Uri.parse(url));
 

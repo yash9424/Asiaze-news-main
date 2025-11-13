@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import 'services/api_service.dart';
+import 'providers/language_provider.dart';
 
 class CategoryPreferencesScreen extends StatefulWidget {
   const CategoryPreferencesScreen({super.key});
@@ -78,7 +80,7 @@ class _CategoryPreferencesScreenState extends State<CategoryPreferencesScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Category Preferences'),
+        title: Text(Provider.of<LanguageProvider>(context).translate('category_preferences')),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0.5,
@@ -94,8 +96,8 @@ class _CategoryPreferencesScreenState extends State<CategoryPreferencesScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Selected Interests',
+                        Text(
+                          Provider.of<LanguageProvider>(context).translate('selected_interests'),
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 12),
@@ -121,8 +123,8 @@ class _CategoryPreferencesScreenState extends State<CategoryPreferencesScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      const Text(
-                        'All Categories',
+                      Text(
+                        Provider.of<LanguageProvider>(context).translate('all_categories'),
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 12),
@@ -161,7 +163,7 @@ class _CategoryPreferencesScreenState extends State<CategoryPreferencesScreen> {
                         ),
                       ),
                       onPressed: _savePreferences,
-                      child: const Text('Save'),
+                      child: Text(Provider.of<LanguageProvider>(context).translate('save')),
                     ),
                   ),
                 ),

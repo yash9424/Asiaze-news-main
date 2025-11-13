@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:video_player/video_player.dart';
-// For web platform only
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:ui' as ui;
+import 'package:provider/provider.dart';
 import 'services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'category_preferences_screen.dart';
+import 'providers/language_provider.dart';
 
 String formatPublishedDate(dynamic date) {
   if (date == null) return 'Recently';
@@ -26,8 +27,14 @@ String formatPublishedDate(dynamic date) {
   }
 }
 
-void main() {
-  runApp(const AsiazeApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final languageProvider = LanguageProvider();
+  await languageProvider.loadLanguage();
+  runApp(ChangeNotifierProvider.value(
+    value: languageProvider,
+    child: const AsiazeApp(),
+  ));
 }
 
 class AsiazeApp extends StatelessWidget {
@@ -97,25 +104,26 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = Provider.of<LanguageProvider>(context);
     return Scaffold(
       backgroundColor: AsiazeApp.primaryRed,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: const [
+          children: [
             Text(
-              'asiaze',
-              style: TextStyle(
+              lang.translate('app_name'),
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 40,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.0,
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
-              'Your World, Simplified',
-              style: TextStyle(
+              lang.translate('tagline'),
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 14,
               ),
@@ -330,6 +338,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final red = AsiazeApp.primaryRed;
+    final lang = Provider.of<LanguageProvider>(context);
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -342,7 +351,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     const SizedBox(height: 24),
                     Text(
-                      'asiaze',
+                      lang.translate('app_name'),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: red,
@@ -354,7 +363,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextField(
                       controller: _emailCtrl,
                       decoration: InputDecoration(
-                        hintText: 'Email or Phone',
+                        hintText: lang.translate('email_phone'),
                         filled: true,
                         fillColor: Colors.white,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -368,7 +377,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: _passCtrl,
                       obscureText: _obscure,
                       decoration: InputDecoration(
-                        hintText: 'Password',
+                        hintText: lang.translate('password'),
                         filled: true,
                         fillColor: Colors.white,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -449,7 +458,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             if (mounted) setState(() => _loading = false);
                           }
                         },
-                        child: Text(_loading ? 'Logging in...' : 'Login'),
+                        child: Text(_loading ? 'Logging in...' : lang.translate('login')),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -485,13 +494,13 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Don't have an account? "),
+                  Text("${lang.translate('dont_have_account')} "),
                   GestureDetector(
                     onTap: () {
                       Navigator.of(context).pushReplacementNamed(SignUpScreen.routeName);
                     },
                     child: Text(
-                      'Sign Up',
+                      lang.translate('signup'),
                       style: TextStyle(color: red, fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -872,9 +881,9 @@ class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _query = TextEditingController();
   List<dynamic> _allPosts = [];
   List<dynamic> _results = [];
-  List<String> _categories = ['My State'];
+  List<Map<String, dynamic>> _categories = [];
   bool _loading = true;
-  String _selectedCategory = 'My State';
+  String _selectedCategory = '';
 
   void _applyFilters() {
     final q = _query.text.toLowerCase();
@@ -884,10 +893,10 @@ class _SearchScreenState extends State<SearchScreen> {
         final content = (p['summary'] ?? p['content'] ?? '').toString().toLowerCase();
         final matchesQuery = q.isEmpty || title.contains(q) || content.contains(q);
         
-        if (_selectedCategory == 'My State') return matchesQuery;
+        if (_selectedCategory.isEmpty) return matchesQuery;
         
-        final catName = p['category']?['name']?.toString() ?? '';
-        return matchesQuery && catName == _selectedCategory;
+        final catId = p['category']?['_id']?.toString() ?? '';
+        return matchesQuery && catId == _selectedCategory;
       }).toList();
     });
   }
@@ -902,13 +911,15 @@ class _SearchScreenState extends State<SearchScreen> {
   Future<void> _fetchData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final interests = prefs.getStringList('interests') ?? [];
-      final news = await ApiService.getNews();
+      final langCode = prefs.getString('language') ?? 'EN';
+      final language = langCode == 'HIN' ? 'hindi' : (langCode == 'BEN' ? 'bengali' : 'english');
+      final news = await ApiService.getNews(language: language);
+      final categories = await ApiService.getCategories();
       
       setState(() {
         _allPosts = news;
         _results = news;
-        _categories = ['My State', ...interests];
+        _categories = List<Map<String, dynamic>>.from(categories);
         _loading = false;
       });
     } catch (e) {
@@ -925,6 +936,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final red = AsiazeApp.primaryRed;
+    final lang = Provider.of<LanguageProvider>(context);
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -957,8 +969,8 @@ class _SearchScreenState extends State<SearchScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: TextField(
                         controller: _query,
-                        decoration: const InputDecoration(
-                          hintText: 'Search news...',
+                        decoration: InputDecoration(
+                          hintText: lang.translate('search'),
                           border: InputBorder.none,
                         ),
                       ),
@@ -1020,22 +1032,38 @@ class _SearchScreenState extends State<SearchScreen> {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
-                  children: _categories.map((c) {
-                    final selected = _selectedCategory == c;
-                    return Padding(
+                  children: [
+                    Padding(
                       padding: const EdgeInsets.only(right: 12),
                       child: ChoiceChip(
-                        label: Text(c),
-                        selected: selected,
+                        label: Text(lang.translate('my_feed')),
+                        selected: _selectedCategory.isEmpty,
                         onSelected: (_) {
-                          setState(() => _selectedCategory = c);
+                          setState(() => _selectedCategory = '');
                           _applyFilters();
                         },
                         selectedColor: red,
-                        labelStyle: TextStyle(color: selected ? Colors.white : Colors.black),
+                        labelStyle: TextStyle(color: _selectedCategory.isEmpty ? Colors.white : Colors.black),
                       ),
-                    );
-                  }).toList(),
+                    ),
+                    ..._categories.map((c) {
+                      final catId = c['_id']?.toString() ?? '';
+                      final selected = _selectedCategory == catId;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 12),
+                        child: ChoiceChip(
+                          label: Text(lang.getCategoryLabel(c)),
+                          selected: selected,
+                          onSelected: (_) {
+                            setState(() => _selectedCategory = catId);
+                            _applyFilters();
+                          },
+                          selectedColor: red,
+                          labelStyle: TextStyle(color: selected ? Colors.white : Colors.black),
+                        ),
+                      );
+                    }).toList(),
+                  ],
                 ),
               ),
             ),
@@ -1049,6 +1077,9 @@ class _SearchScreenState extends State<SearchScreen> {
                           itemBuilder: (context, i) {
                             final p = _results[i];
                             final image = p['image'] ?? 'asset:refranceimages/Group (16).png';
+                            final title = lang.getNewsContent(p, 'title');
+                            final summary = lang.getNewsContent(p, 'summary');
+                            final content = lang.getNewsContent(p, 'content');
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 16.0),
                               child: Card(
@@ -1067,9 +1098,9 @@ class _SearchScreenState extends State<SearchScreen> {
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(p['title'] ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                                          Text(title.isNotEmpty ? title : 'No Title', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                                           const SizedBox(height: 6),
-                                          Text(p['summary'] ?? p['content'] ?? '', style: TextStyle(color: Colors.grey.shade700), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                          Text(summary.isNotEmpty ? summary : content, style: TextStyle(color: Colors.grey.shade700), maxLines: 2, overflow: TextOverflow.ellipsis),
                                           const SizedBox(height: 8),
                                           Text('ASIAZE • Recently', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
                                         ],
@@ -1086,7 +1117,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           children: [
                             Icon(Icons.search_off, size: 64, color: Colors.grey.shade400),
                             const SizedBox(height: 16),
-                            Text('No results found', style: TextStyle(color: Colors.black54)),
+                            Text(lang.translate('no_results'), style: const TextStyle(color: Colors.black54)),
                           ],
                         ),
             ),
@@ -1141,7 +1172,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title: const Text('Profile'),
+        title: Text(Provider.of<LanguageProvider>(context).translate('profile')),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0.5,
@@ -1163,7 +1194,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const Divider(),
           ListTile(
             leading: Icon(Icons.card_giftcard, color: red),
-            title: const Text('Reward'),
+            title: Text(Provider.of<LanguageProvider>(context).translate('reward')),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.of(context).push(MaterialPageRoute(builder: (_) => const RewardScreen()));
@@ -1172,7 +1203,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const Divider(height: 1),
           ListTile(
             leading: Icon(Icons.bookmark, color: red),
-            title: const Text('Saved'),
+            title: Text(Provider.of<LanguageProvider>(context).translate('saved')),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SavedScreen()));
@@ -1181,7 +1212,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const Divider(height: 1),
           ListTile(
             leading: Icon(Icons.settings, color: red),
-            title: const Text('Settings'),
+            title: Text(Provider.of<LanguageProvider>(context).translate('settings')),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
@@ -1190,7 +1221,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const Divider(height: 1),
           ListTile(
             leading: Icon(Icons.location_on, color: red),
-            title: const Text('Your State :  West Bengal'),
+            title: Text('${Provider.of<LanguageProvider>(context).translate('your_state')} : ${Provider.of<LanguageProvider>(context).translate('west_bengal')}'),
           ),
           const Divider(),
           const SizedBox(height: 16),
@@ -1213,7 +1244,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   if (!context.mounted) return;
                   Navigator.of(context).pushNamedAndRemoveUntil(LoginScreen.routeName, (route) => false);
                 },
-                child: const Text('Logout'),
+                child: Text(Provider.of<LanguageProvider>(context).translate('logout')),
               ),
             ),
           ),
@@ -1290,16 +1321,18 @@ class _VideosScreenState extends State<VideosScreen> {
       print('🎬 Fetching reels from API...');
       final prefs = await SharedPreferences.getInstance();
       final categoryIds = prefs.getStringList('categoryIds') ?? [];
+      final langCode = prefs.getString('language') ?? 'EN';
+      final language = langCode == 'HIN' ? 'hindi' : (langCode == 'BEN' ? 'bengali' : 'english');
       
       List<dynamic> reels;
       if (categoryIds.isEmpty) {
         print('📡 Fetching all reels (no category filter)');
-        reels = await ApiService.getReels();
+        reels = await ApiService.getReels(language: language);
       } else {
         print('📡 Fetching reels for categories: $categoryIds');
         reels = [];
         for (final id in categoryIds) {
-          final categoryReels = await ApiService.getReels(categoryId: id);
+          final categoryReels = await ApiService.getReels(categoryId: id, language: language);
           reels.addAll(categoryReels);
         }
       }
@@ -1414,7 +1447,7 @@ class _VideosScreenState extends State<VideosScreen> {
                       Icon(Icons.videocam_off, size: 64, color: Colors.grey.shade600),
                       const SizedBox(height: 16),
                       Text(
-                        'No reels available',
+                        Provider.of<LanguageProvider>(context).translate('no_reels'),
                         style: TextStyle(color: Colors.grey.shade400, fontSize: 18),
                       ),
                       const SizedBox(height: 8),
@@ -1822,13 +1855,14 @@ class _StoryScreenState extends State<StoryScreen> {
     }
 
     if (_stories.isEmpty) {
+      final lang = Provider.of<LanguageProvider>(context);
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.auto_stories_outlined, size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
-            Text('No stories available', style: TextStyle(color: Colors.grey.shade600)),
+            Text(lang.translate('no_stories'), style: TextStyle(color: Colors.grey.shade600)),
           ],
         ),
       );
@@ -2145,6 +2179,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final red = AsiazeApp.primaryRed;
+    final lang = Provider.of<LanguageProvider>(context);
     
     if (_loading) {
       return Scaffold(
@@ -2154,8 +2189,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final displayCategories = [
-      {'name': 'My Feed', '_id': ''},
-      {'name': 'Story', '_id': 'story'},
+      {'name': lang.translate('my_feed'), '_id': '', 'isTranslated': true},
+      {'name': lang.translate('story'), '_id': 'story', 'isTranslated': true},
       ..._allCategories,
     ];
     
@@ -2193,7 +2228,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     indicatorSize: TabBarIndicatorSize.label,
                     indicatorWeight: 3,
                     labelPadding: const EdgeInsets.only(right: 16),
-                    tabs: displayCategories.map((cat) => Tab(text: cat['name'].toString())).toList(),
+                    tabs: displayCategories.map((cat) {
+                      final isTranslated = cat['isTranslated'] == true;
+                      final text = isTranslated ? cat['name'].toString() : lang.getCategoryLabel(cat);
+                      return Tab(text: text);
+                    }).toList(),
                   ),
                 ),
               ),
@@ -2215,10 +2254,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
-                  child: const Align(
+                  child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Breaking News: Major updates from around the world...',
+                      lang.translate('breaking_news'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
@@ -2269,23 +2308,33 @@ class _FeedListState extends State<FeedList> {
     _fetchNews();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final lang = Provider.of<LanguageProvider>(context);
+    _fetchNews();
+  }
+
   Future<void> _fetchNews() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final langCode = prefs.getString('language') ?? 'EN';
+      final language = langCode == 'HIN' ? 'hindi' : (langCode == 'BEN' ? 'bengali' : 'english');
+      
       List<dynamic> news;
-      if (widget.categoryName == 'My Feed') {
-        final prefs = await SharedPreferences.getInstance();
+      if (widget.categoryName == 'My Feed' || widget.categoryName.contains('फ़ीड') || widget.categoryName.contains('ফিড')) {
         final categoryIds = prefs.getStringList('categoryIds') ?? [];
         if (categoryIds.isEmpty) {
-          news = await ApiService.getNews();
+          news = await ApiService.getNews(language: language);
         } else {
           news = [];
           for (final id in categoryIds) {
-            final categoryNews = await ApiService.getNews(categoryId: id);
+            final categoryNews = await ApiService.getNews(categoryId: id, language: language);
             news.addAll(categoryNews);
           }
         }
       } else {
-        news = await ApiService.getNews(categoryId: widget.categoryId);
+        news = await ApiService.getNews(categoryId: widget.categoryId, language: language);
       }
       setState(() {
         _news = news;
@@ -2298,6 +2347,8 @@ class _FeedListState extends State<FeedList> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = Provider.of<LanguageProvider>(context);
+    
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -2309,7 +2360,7 @@ class _FeedListState extends State<FeedList> {
           children: [
             Icon(Icons.article_outlined, size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
-            Text('No news available', style: TextStyle(color: Colors.grey.shade600)),
+            Text(lang.translate('no_news'), style: TextStyle(color: Colors.grey.shade600)),
           ],
         ),
       );
@@ -2319,14 +2370,19 @@ class _FeedListState extends State<FeedList> {
       itemCount: _news.length,
       itemBuilder: (context, index) {
         final article = _news[index];
+        final title = lang.getNewsContent(article, 'title');
+        final summary = lang.getNewsContent(article, 'summary');
+        final content = lang.getNewsContent(article, 'content');
+        final explanation = lang.getNewsContent(article, 'explanation');
+        
         return Padding(
           padding: const EdgeInsets.all(16.0),
           child: NewsCard(
             imageUrl: article['image'] ?? 'asset:refranceimages/Group (16).png',
-            title: article['title'] ?? 'No Title',
-            subtitle: article['summary'] ?? article['content'] ?? '',
+            title: title.isNotEmpty ? title : 'No Title',
+            subtitle: summary.isNotEmpty ? summary : content,
             meta: 'ASIAZE • ${formatPublishedDate(article['publishedAt'])}',
-            explanation: article['explanation'],
+            explanation: explanation,
           ),
         );
       },
@@ -2459,14 +2515,14 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String _lang = 'EN';
   bool _notif = true;
 
   @override
   Widget build(BuildContext context) {
     final red = AsiazeApp.primaryRed;
+    final lang = Provider.of<LanguageProvider>(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: Text(lang.translate('settings'))),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
@@ -2476,12 +2532,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 const Icon(Icons.language),
                 const SizedBox(width: 12),
-                const Expanded(child: Text('Language')),
-                _chip('EN'),
+                Expanded(child: Text(lang.translate('language'))),
+                _chip('EN', lang),
                 const SizedBox(width: 8),
-                _chip('HIN'),
+                _chip('HIN', lang),
                 const SizedBox(width: 8),
-                _chip('BEN'),
+                _chip('BEN', lang),
               ],
             ),
           ),
@@ -2494,19 +2550,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
             child: ListTile(
               leading: Icon(Icons.list, color: red),
-              title: const Text('Category Preferences'),
+              title: Text(lang.translate('category_preferences')),
               trailing: const Icon(Icons.chevron_right),
             ),
           ),
           SwitchListTile(
             value: _notif,
             onChanged: (v) => setState(() => _notif = v),
-            title: const Text('Notifications'),
+            title: Text(lang.translate('notifications')),
             secondary: const Icon(Icons.notifications),
           ),
           ListTile(
             leading: const Icon(Icons.description),
-            title: const Text('Privacy Policy'),
+            title: Text(lang.translate('privacy_policy')),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -2516,7 +2572,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.description_outlined),
-            title: const Text('Terms & Conditions'),
+            title: Text(lang.translate('terms_conditions')),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -2526,39 +2582,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.info_outline),
-            title: const Text('About Us'),
+            title: Text(lang.translate('about_us')),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('About Us - Coming Soon')),
               );
             },
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SizedBox(
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: red,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                ),
-                onPressed: () async {
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.setBool('isLoggedIn', false);
-                  await prefs.remove('userId');
-                  await prefs.remove('userName');
-                  await prefs.remove('userEmail');
-                  if (!context.mounted) return;
-                  Navigator.of(context).pushNamedAndRemoveUntil(LoginScreen.routeName, (route) => false);
-                },
-                child: const Text('Logout'),
-              ),
-            ),
           ),
           const SizedBox(height: 24),
         ],
@@ -2567,12 +2597,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _chip(String value) {
-    final selected = _lang == value;
+  Widget _chip(String value, LanguageProvider lang) {
+    final selected = lang.languageCode == value;
     return ChoiceChip(
       label: Text(value),
       selected: selected,
-      onSelected: (_) => setState(() => _lang = value),
+      onSelected: (_) async {
+        await lang.setLanguage(value);
+        final prefs = await SharedPreferences.getInstance();
+        final userId = prefs.getString('userId');
+        if (userId != null && userId.isNotEmpty) {
+          final categoryIds = prefs.getStringList('categoryIds') ?? [];
+          try {
+            await ApiService.updateUserPreferences(userId, value, categoryIds);
+          } catch (e) {
+            print('Failed to update language: $e');
+          }
+        }
+      },
       selectedColor: AsiazeApp.primaryRed,
       labelStyle: TextStyle(color: selected ? Colors.white : null),
     );
@@ -2632,7 +2674,7 @@ class SavedScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         appBar: AppBar(
           leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.of(context).maybePop()),
-          title: const Text('Saved'),
+          title: Text(Provider.of<LanguageProvider>(context).translate('saved')),
           centerTitle: true,
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
@@ -2641,9 +2683,9 @@ class SavedScreen extends StatelessWidget {
             labelColor: red,
             unselectedLabelColor: Colors.black54,
             indicatorColor: red,
-            tabs: const [
-              Tab(text: 'Articles'),
-              Tab(text: 'Reels'),
+            tabs: [
+              Tab(text: Provider.of<LanguageProvider>(context).translate('articles')),
+              Tab(text: Provider.of<LanguageProvider>(context).translate('reels')),
             ],
           ),
         ),
@@ -2700,13 +2742,14 @@ class SavedReelsTab extends StatelessWidget {
       valueListenable: SavedReelsStore.saved,
       builder: (context, list, _) {
         if (list.isEmpty) {
+          final lang = Provider.of<LanguageProvider>(context);
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.videocam_off, size: 64, color: Colors.grey.shade400),
                 const SizedBox(height: 16),
-                const Text('No saved reels yet', style: TextStyle(color: Colors.black54)),
+                Text(lang.translate('no_saved_reels'), style: const TextStyle(color: Colors.black54)),
                 const SizedBox(height: 8),
                 Text('Save reels by tapping the bookmark icon.', style: TextStyle(color: Colors.black45)),
               ],
@@ -2801,14 +2844,15 @@ class SavedArticlesTab extends StatelessWidget {
       valueListenable: SavedArticlesStore.saved,
       builder: (context, list, _) {
           if (list.isEmpty) {
+            final lang = Provider.of<LanguageProvider>(context);
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.bookmark_border, size: 64, color: Colors.grey.shade400),
                   const SizedBox(height: 16),
-                  const Text(
-                    'No saved articles yet',
+                  Text(
+                    lang.translate('no_saved_articles'),
                     style: TextStyle(color: Colors.black54, fontSize: 16),
                   ),
                   const SizedBox(height: 8),
@@ -3421,7 +3465,7 @@ class _RewardScreenState extends State<RewardScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Reward Points'),
+        title: Text(Provider.of<LanguageProvider>(context).translate('reward_points')),
         centerTitle: true,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
@@ -3469,8 +3513,8 @@ class _RewardScreenState extends State<RewardScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Share news or refer friends to earn more\npoints.',
+                        Text(
+                          Provider.of<LanguageProvider>(context).translate('share_earn'),
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.black87, fontSize: 14),
                         ),
@@ -3495,7 +3539,7 @@ class _RewardScreenState extends State<RewardScreen> {
                             const SnackBar(content: Text('Invite feature coming soon!')),
                           );
                         },
-                        child: const Text('Invite Friends', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                        child: Text(Provider.of<LanguageProvider>(context).translate('invite_friends'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                       ),
                     ),
                   ),
@@ -3503,7 +3547,7 @@ class _RewardScreenState extends State<RewardScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
-                      'Available Rewards',
+                      Provider.of<LanguageProvider>(context).translate('available_rewards'),
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -3619,7 +3663,7 @@ class _RewardCard extends StatelessWidget {
                     );
                   }
                 : null,
-            child: const Text('Redeem', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            child: Text(Provider.of<LanguageProvider>(context).translate('redeem'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -3669,6 +3713,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
   @override
   Widget build(BuildContext context) {
     final red = AsiazeApp.primaryRed;
+    final lang = Provider.of<LanguageProvider>(context);
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -3677,10 +3722,10 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 8),
-              const Text(
-                'Choose Your Language',
+              Text(
+                lang.translate('choose_language'),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 16),
               Row(
@@ -3688,10 +3733,10 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                 children: _languages.map((l) => _langChip(l, red)).toList(),
               ),
               const SizedBox(height: 24),
-              const Text(
-                'Select Your Interests',
+              Text(
+                lang.translate('select_interests'),
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 16),
               _loading
@@ -3705,7 +3750,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                           childAspectRatio: 1.9,
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          children: _categories.map((c) => _interestTile(c['name'].toString(), red)).toList(),
+                          children: _categories.map((c) => _interestTile(lang.getCategoryLabel(c), red)).toList(),
                         ),
               const SizedBox(height: 24),
               Align(
@@ -3770,7 +3815,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                       if (!mounted) return;
                       Navigator.of(context).pushReplacementNamed(MainNav.routeName);
                     },
-                    child: const Text('Continue'),
+                    child: Text(lang.translate('continue')),
                   ),
                 ),
               ),
