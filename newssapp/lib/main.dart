@@ -9,6 +9,23 @@ import 'services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'category_preferences_screen.dart';
 
+String formatPublishedDate(dynamic date) {
+  if (date == null) return 'Recently';
+  try {
+    final dt = DateTime.parse(date.toString());
+    final diff = DateTime.now().difference(dt);
+    if (diff.inSeconds < 60) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    if (diff.inDays < 30) return '${(diff.inDays / 7).floor()}w ago';
+    if (diff.inDays < 365) return '${(diff.inDays / 30).floor()}mo ago';
+    return '${(diff.inDays / 365).floor()}y ago';
+  } catch (e) {
+    return 'Recently';
+  }
+}
+
 void main() {
   runApp(const AsiazeApp());
 }
@@ -1310,7 +1327,7 @@ class _VideosScreenState extends State<VideosScreen> {
               image: r['thumbnail'] ?? 'refranceimages/c049d488ea53162e319b73ae144cac43efe0c895.png',
               title: r['title'] ?? 'News Reel',
               source: 'ASIAZE',
-              timeAgo: _formatDate(r['publishedAt']),
+              timeAgo: formatPublishedDate(r['publishedAt']),
             );
           }).toList();
           _loading = false;
@@ -2308,7 +2325,7 @@ class _FeedListState extends State<FeedList> {
             imageUrl: article['image'] ?? 'asset:refranceimages/Group (16).png',
             title: article['title'] ?? 'No Title',
             subtitle: article['summary'] ?? article['content'] ?? '',
-            meta: 'ASIAZE • ${_formatDate(article['publishedAt'])}',
+            meta: 'ASIAZE • ${formatPublishedDate(article['publishedAt'])}',
             explanation: article['explanation'],
           ),
         );
