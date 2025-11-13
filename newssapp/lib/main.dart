@@ -2302,9 +2302,8 @@ class _FeedListState extends State<FeedList> {
       itemCount: _news.length,
       itemBuilder: (context, index) {
         final article = _news[index];
-        return Container(
-          margin: const EdgeInsets.all(16.0),
-          height: 400,
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
           child: NewsCard(
             imageUrl: article['image'] ?? 'asset:refranceimages/Group (16).png',
             title: article['title'] ?? 'No Title',
@@ -3059,132 +3058,134 @@ class ArticleDetailScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: imageUrl.startsWith('asset:')
-                    ? Image.asset(
-                        imageUrl.replaceFirst('asset:', ''),
-                        width: double.infinity,
-                        height: 200,
-                        fit: BoxFit.cover,
-                      )
-                    : Image.network(
-                        imageUrl,
-                        width: double.infinity,
-                        height: 200,
-                        fit: BoxFit.cover,
-                      ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  height: 1.3,
-                  color: Colors.black,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: imageUrl.startsWith('asset:')
+                      ? Image.asset(
+                          imageUrl.replaceFirst('asset:', ''),
+                          width: double.infinity,
+                          height: 200,
+                          fit: BoxFit.cover,
+                        )
+                      : Image.network(
+                          imageUrl,
+                          width: double.infinity,
+                          height: 200,
+                          fit: BoxFit.cover,
+                        ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade700,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                meta,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                height: 2,
-                width: double.infinity,
-                color: red,
-              ),
-              const SizedBox(height: 16),
-              if (explanation.isNotEmpty)
+                const SizedBox(height: 16),
                 Text(
-                  explanation,
-                  style: TextStyle(
-                    fontSize: 15,
-                    height: 1.7,
-                    color: Colors.grey.shade800,
+                  title,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    height: 1.3,
+                    color: Colors.black,
                   ),
                 ),
-              const SizedBox(height: 32),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ValueListenableBuilder<List<SavedArticle>>(
-                    valueListenable: SavedArticlesStore.saved,
-                    builder: (context, saved, _) {
-                      final isSaved = saved.any((e) => e.title == title);
-                      return IconButton(
-                        icon: Icon(
-                          isSaved ? Icons.favorite : Icons.favorite_border,
-                          size: 32,
-                          color: Colors.black,
-                        ),
-                        onPressed: () {
-                          SavedArticlesStore.toggle(SavedArticle(
-                            image: imageUrl,
-                            title: title,
-                            subtitle: subtitle,
-                            meta: meta,
-                          ));
-                        },
-                      );
-                    },
+                const SizedBox(height: 12),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade700,
+                    height: 1.5,
                   ),
-                  const SizedBox(width: 24),
-                  ValueListenableBuilder<List<SavedArticle>>(
-                    valueListenable: SavedArticlesStore.saved,
-                    builder: (context, saved, _) {
-                      final isSaved = saved.any((e) => e.title == title);
-                      return IconButton(
-                        icon: Icon(
-                          isSaved ? Icons.bookmark : Icons.bookmark_border,
-                          size: 32,
-                          color: Colors.black,
-                        ),
-                        onPressed: () {
-                          SavedArticlesStore.toggle(SavedArticle(
-                            image: imageUrl,
-                            title: title,
-                            subtitle: subtitle,
-                            meta: meta,
-                          ));
-                        },
-                      );
-                    },
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  meta,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
                   ),
-                  const SizedBox(width: 24),
-                  IconButton(
-                    icon: const Icon(Icons.share, size: 32, color: Colors.black),
-                    onPressed: () async {
-                      await Clipboard.setData(ClipboardData(text: title));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Link copied')),
-                      );
-                    },
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  height: 2,
+                  width: double.infinity,
+                  color: red,
+                ),
+                const SizedBox(height: 16),
+                if (explanation.isNotEmpty)
+                  Text(
+                    explanation,
+                    style: TextStyle(
+                      fontSize: 15,
+                      height: 1.7,
+                      color: Colors.grey.shade800,
+                    ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 20),
-            ],
+                const SizedBox(height: 32),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ValueListenableBuilder<List<SavedArticle>>(
+                      valueListenable: SavedArticlesStore.saved,
+                      builder: (context, saved, _) {
+                        final isSaved = saved.any((e) => e.title == title);
+                        return IconButton(
+                          icon: Icon(
+                            isSaved ? Icons.favorite : Icons.favorite_border,
+                            size: 32,
+                            color: Colors.black,
+                          ),
+                          onPressed: () {
+                            SavedArticlesStore.toggle(SavedArticle(
+                              image: imageUrl,
+                              title: title,
+                              subtitle: subtitle,
+                              meta: meta,
+                            ));
+                          },
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 24),
+                    ValueListenableBuilder<List<SavedArticle>>(
+                      valueListenable: SavedArticlesStore.saved,
+                      builder: (context, saved, _) {
+                        final isSaved = saved.any((e) => e.title == title);
+                        return IconButton(
+                          icon: Icon(
+                            isSaved ? Icons.bookmark : Icons.bookmark_border,
+                            size: 32,
+                            color: Colors.black,
+                          ),
+                          onPressed: () {
+                            SavedArticlesStore.toggle(SavedArticle(
+                              image: imageUrl,
+                              title: title,
+                              subtitle: subtitle,
+                              meta: meta,
+                            ));
+                          },
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 24),
+                    IconButton(
+                      icon: const Icon(Icons.share, size: 32, color: Colors.black),
+                      onPressed: () async {
+                        await Clipboard.setData(ClipboardData(text: title));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Link copied')),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ),
