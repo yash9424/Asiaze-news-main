@@ -77,6 +77,17 @@ class ApiService {
     }
   }
 
+  // Get all stories
+  static Future<List<dynamic>> getStories() async {
+    final response = await http.get(Uri.parse('$baseUrl/stories'));
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body)['stories'] ?? [];
+    } else {
+      throw Exception('Failed to load stories');
+    }
+  }
+
   // Get all categories
   static Future<List<dynamic>> getCategories() async {
     final response = await http.get(Uri.parse('$baseUrl/categories'));

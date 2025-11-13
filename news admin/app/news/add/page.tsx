@@ -10,9 +10,16 @@ export default function AddNewsPage() {
   type FormData = {
     headline: string
     summary: string
+    explanation: string
     fullArticleLink: string
     category: string
-    language: string
+    languages: string[]
+    currentLang: string
+    translations: {
+      EN: { headline: string; summary: string; explanation: string; fullArticleLink: string }
+      HIN: { headline: string; summary: string; explanation: string; fullArticleLink: string }
+      BEN: { headline: string; summary: string; explanation: string; fullArticleLink: string }
+    }
     tags: string[]
     currentTag: string
     source: string
@@ -28,15 +35,37 @@ export default function AddNewsPage() {
   const [formData, setFormData] = useState<FormData>({
     headline: '',
     summary: '',
+    explanation: '',
     fullArticleLink: '',
     category: '',
-    language: 'EN',
+    languages: [],
+    currentLang: 'EN',
+    translations: {
+      EN: { headline: '', summary: '', explanation: '', fullArticleLink: '' },
+      HIN: { headline: '', summary: '', explanation: '', fullArticleLink: '' },
+      BEN: { headline: '', summary: '', explanation: '', fullArticleLink: '' }
+    },
     tags: [],
     currentTag: '',
     source: '',
     timestamp: '',
     image: ''
   })
+
+  const translateText = async (text: string, targetLang: string) => {
+    try {
+      const res = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, targetLang })
+      })
+      const data = await res.json()
+      return data.translatedText || text
+    } catch (error) {
+      console.error('Translation failed:', error)
+      return text
+    }
+  }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -80,7 +109,21 @@ export default function AddNewsPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target as HTMLInputElement
-    setFormData(prev => ({ ...prev, [name]: value } as unknown as FormData))
+    if (['headline', 'summary', 'explanation', 'fullArticleLink'].includes(name)) {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        translations: {
+          ...prev.translations,
+          [prev.currentLang]: {
+            ...prev.translations[prev.currentLang as keyof typeof prev.translations],
+            [name === 'fullArticleLink' ? 'fullArticleLink' : name]: value
+          }
+        }
+      }))
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value } as unknown as FormData))
+    }
   }
 
   const handleAddTag = async () => {
@@ -133,28 +176,49 @@ export default function AddNewsPage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>, status: string = 'published') => {
     if (e && 'preventDefault' in e) e.preventDefault()
     
-    if (!formData.headline || !formData.summary || !formData.category) {
-      alert('Please fill in all required fields')
+    if (!formData.headline || !formData.summary || !formData.category || formData.languages.length === 0) {
+      alert('Please fill in all required fields and select at least one language')
       return
     }
 
     setLoading(true)
     try {
+      // Build translations object with proper structure
+      const translations: any = {}
+      formData.languages.forEach(lang => {
+        const langKey = lang as keyof typeof formData.translations
+        translations[lang] = {
+          title: formData.translations[langKey]?.headline || '',
+          content: formData.translations[langKey]?.fullArticleLink || '',
+          summary: formData.translations[langKey]?.summary || '',
+          explanation: formData.translations[langKey]?.explanation || ''
+        }
+      })
+
+      console.log('Languages:', formData.languages)
+      console.log('Translations being saved:', translations)
+
+      const payload = {
+        title: formData.translations[formData.languages[0] as keyof typeof formData.translations]?.headline || formData.headline,
+        content: formData.translations[formData.languages[0] as keyof typeof formData.translations]?.fullArticleLink || formData.fullArticleLink,
+        summary: formData.translations[formData.languages[0] as keyof typeof formData.translations]?.summary || formData.summary,
+        explanation: formData.translations[formData.languages[0] as keyof typeof formData.translations]?.explanation || formData.explanation,
+        image: formData.image,
+        category: formData.category,
+        tags: formData.tags,
+        languages: formData.languages,
+        translations: translations,
+        source: formData.source,
+        status: status,
+        publishedAt: status === 'published' ? (formData.timestamp || new Date().toISOString()) : null
+      }
+      
+      console.log('Full payload:', JSON.stringify(payload, null, 2))
+
       const res = await fetch('/api/news', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: formData.headline,
-          content: formData.fullArticleLink,
-          summary: formData.summary,
-          image: formData.image,
-          category: formData.category,
-          tags: formData.tags,
-          language: formData.language,
-          source: formData.source,
-          status: status,
-          publishedAt: status === 'published' ? (formData.timestamp || new Date().toISOString()) : null
-        })
+        body: JSON.stringify(payload)
       })
 
       if (res.ok) {
@@ -181,6 +245,38 @@ export default function AddNewsPage() {
         </div>
 
         <div className={styles.content}>
+          {formData.languages.length > 0 && (
+            <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', borderBottom: '2px solid #e0e0e0', paddingBottom: '10px' }}>
+              {formData.languages.map(lang => (
+                <button
+                  key={lang}
+                  type="button"
+                  onClick={() => {
+                    setFormData(prev => ({
+                      ...prev,
+                      currentLang: lang,
+                      headline: prev.translations[lang as keyof typeof prev.translations].headline,
+                      summary: prev.translations[lang as keyof typeof prev.translations].summary,
+                      explanation: prev.translations[lang as keyof typeof prev.translations].explanation,
+                      fullArticleLink: prev.translations[lang as keyof typeof prev.translations].fullArticleLink
+                    }))
+                  }}
+                  style={{
+                    padding: '10px 20px',
+                    border: 'none',
+                    backgroundColor: formData.currentLang === lang ? '#e31e3a' : '#f0f0f0',
+                    color: formData.currentLang === lang ? 'white' : '#333',
+                    borderRadius: '5px',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    fontSize: '14px'
+                  }}
+                >
+                  {lang}
+                </button>
+              ))}
+            </div>
+          )}
           <form onSubmit={handleSubmit} className={styles.formGrid}>
             {/* Left column */}
             <div>
@@ -204,8 +300,21 @@ export default function AddNewsPage() {
                   onChange={handleChange}
                   placeholder="Enter summary (max ~60 words)"
                   className={styles.textarea}
+                  rows={3}
                 />
                 <div className={styles.charCount}>0/60 words</div>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Explanation (Detailed)</label>
+                <textarea
+                  name="explanation"
+                  value={formData.explanation}
+                  onChange={handleChange}
+                  placeholder="Enter detailed explanation for users"
+                  className={styles.textarea}
+                  rows={5}
+                />
               </div>
 
               <div className={styles.formGroup}>
@@ -237,18 +346,56 @@ export default function AddNewsPage() {
                 </div>
 
                 <div className={styles.w48}>
-                  <label className={styles.label}>Language</label>
-                  <select
-                    name="language"
-                    aria-label="Language"
-                    value={formData.language}
-                    onChange={handleChange}
-                    className={styles.select}
-                  >
-                    <option value="EN">EN</option>
-                    <option value="HIN">HIN</option>
-                    <option value="BEN">BEN</option>
-                  </select>
+                  <label className={styles.label}>Languages</label>
+                  <div style={{ display: 'flex', gap: '15px', marginTop: '8px' }}>
+                    {['EN', 'HIN', 'BEN'].map(lang => (
+                      <label key={lang} style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={formData.languages.includes(lang)}
+                          onChange={async (e) => {
+                            if (e.target.checked && !formData.languages.includes(lang)) {
+                              let translatedHeadline, translatedSummary, translatedExplanation
+                              
+                              if (lang === 'EN') {
+                                translatedHeadline = formData.headline
+                                translatedSummary = formData.summary
+                                translatedExplanation = formData.explanation
+                              } else {
+                                const targetLangCode = lang === 'HIN' ? 'hi' : 'bn'
+                                translatedHeadline = formData.headline ? await translateText(formData.headline, targetLangCode) : ''
+                                translatedSummary = formData.summary ? await translateText(formData.summary, targetLangCode) : ''
+                                translatedExplanation = formData.explanation ? await translateText(formData.explanation, targetLangCode) : ''
+                              }
+                              
+                              setFormData(prev => {
+                                const uniqueLangs = [...new Set([...prev.languages, lang])]
+                                return {
+                                  ...prev,
+                                  languages: uniqueLangs,
+                                  translations: {
+                                    ...prev.translations,
+                                    [lang]: {
+                                      headline: translatedHeadline,
+                                      summary: translatedSummary,
+                                      explanation: translatedExplanation,
+                                      fullArticleLink: prev.fullArticleLink
+                                    }
+                                  }
+                                }
+                              })
+                            } else if (!e.target.checked) {
+                              setFormData(prev => ({
+                                ...prev,
+                                languages: prev.languages.filter(l => l !== lang)
+                              }))
+                            }
+                          }}
+                        />
+                        <span>{lang}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </div>
 

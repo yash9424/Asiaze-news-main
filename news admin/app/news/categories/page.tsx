@@ -206,18 +206,26 @@ export default function CategoriesPage() {
                   
                   if (newName.trim()) {
                     try {
-                      const res = await fetch('/api/translate', {
+                      const hindiRes = await fetch('/api/translate', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text: newName })
+                        body: JSON.stringify({ text: newName, targetLang: 'hi' })
                       });
-                      const data = await res.json();
+                      const hindiData = await hindiRes.json();
+                      
+                      const bengaliRes = await fetch('/api/translate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: newName, targetLang: 'bn' })
+                      });
+                      const bengaliData = await bengaliRes.json();
+                      
                       setFormData(prev => ({
                         ...prev,
                         labels: {
                           english: newName,
-                          hindi: data.hindi,
-                          bengali: data.bengali
+                          hindi: hindiData.translatedText || newName,
+                          bengali: bengaliData.translatedText || newName
                         }
                       }));
                     } catch (error) {

@@ -22,6 +22,8 @@ export async function GET(req: NextRequest) {
     if (category) query.category = category;
 
     const news = await News.find(query)
+      .populate('category')
+      .populate('tags')
       .lean()
       .sort({ publishedAt: -1, createdAt: -1 });
 
@@ -56,15 +58,17 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    const newsData = {
+    const news = new News({
       ...data,
       tags: tagIds,
       updatedAt: new Date()
-    };
-    console.log('Creating news with data:', newsData);
+    });
     
-    const news = await News.create(newsData);
-    console.log('Created news:', news);
+    news.markModified('translations');
+    await news.save();
+    
+    console.log('Created news with languages:', news.languages);
+    console.log('Created news with translations:', news.translations);
 
     return NextResponse.json({ news }, { status: 201 });
   } catch (error: any) {

@@ -1767,6 +1767,334 @@ class _TopCircleButton extends StatelessWidget {
   }
 }
 
+// ---------------- Story Screen ----------------
+class StoryScreen extends StatefulWidget {
+  const StoryScreen({super.key});
+
+  @override
+  State<StoryScreen> createState() => _StoryScreenState();
+}
+
+class _StoryScreenState extends State<StoryScreen> {
+  List<dynamic> _stories = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchStories();
+  }
+
+  Future<void> _fetchStories() async {
+    try {
+      final stories = await ApiService.getStories();
+      setState(() {
+        _stories = stories;
+        _loading = false;
+      });
+    } catch (e) {
+      print('Error fetching stories: $e');
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_stories.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.auto_stories_outlined, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text('No stories available', style: TextStyle(color: Colors.grey.shade600)),
+          ],
+        ),
+      );
+    }
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.75,
+      ),
+      itemCount: _stories.length,
+      itemBuilder: (context, index) {
+        final story = _stories[index];
+        final imageUrl = story['image'] ?? 'asset:refranceimages/Group (16).png';
+        
+        return GestureDetector(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => StoryViewerScreen(
+                  stories: _stories,
+                  initialIndex: index,
+                ),
+              ),
+            );
+          },
+          child: Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: imageUrl.startsWith('asset:')
+                      ? Image.asset(
+                          imageUrl.replaceFirst('asset:', ''),
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        )
+                      : Image.network(
+                          imageUrl,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stack) {
+                            return Container(
+                              color: Colors.grey.shade300,
+                              child: Icon(Icons.image, size: 40, color: Colors.grey.shade600),
+                            );
+                          },
+                        ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Text(
+                    story['title'] ?? 'Story',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ---------------- Story Viewer Screen ----------------
+class StoryViewerScreen extends StatefulWidget {
+  final List<dynamic> stories;
+  final int initialIndex;
+
+  const StoryViewerScreen({
+    super.key,
+    required this.stories,
+    required this.initialIndex,
+  });
+
+  @override
+  State<StoryViewerScreen> createState() => _StoryViewerScreenState();
+}
+
+class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTickerProviderStateMixin {
+  late PageController _pageController;
+  late AnimationController _progressController;
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: _currentIndex);
+    _progressController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+    );
+    _startProgress();
+  }
+
+  void _startProgress() {
+    _progressController.reset();
+    _progressController.forward().then((_) {
+      if (mounted) _nextStory();
+    });
+  }
+
+  void _nextStory() {
+    if (_currentIndex < widget.stories.length - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
+  void _previousStory() {
+    if (_currentIndex > 0) {
+      _pageController.previousPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _progressController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: GestureDetector(
+        onTapDown: (details) {
+          final screenWidth = MediaQuery.of(context).size.width;
+          if (details.globalPosition.dx < screenWidth / 2) {
+            _previousStory();
+          } else {
+            _nextStory();
+          }
+        },
+        child: Stack(
+          children: [
+            PageView.builder(
+              controller: _pageController,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: widget.stories.length,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+                _startProgress();
+              },
+              itemBuilder: (context, index) {
+                final story = widget.stories[index];
+                final imageUrl = story['image'] ?? '';
+                
+                return Container(
+                  color: Colors.black,
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: Center(
+                          child: imageUrl.startsWith('asset:')
+                              ? Image.asset(
+                                  imageUrl.replaceFirst('asset:', ''),
+                                  fit: BoxFit.contain,
+                                )
+                              : Image.network(
+                                  imageUrl,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (context, error, stack) {
+                                    return Icon(
+                                      Icons.image,
+                                      size: 100,
+                                      color: Colors.grey.shade600,
+                                    );
+                                  },
+                                ),
+                        ),
+                      ),
+                      if (story['content'] != null && story['content'].toString().isNotEmpty)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          color: Colors.black.withOpacity(0.7),
+                          child: Text(
+                            story['content'].toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            SafeArea(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: List.generate(
+                              widget.stories.length,
+                              (index) => Expanded(
+                                child: Container(
+                                  height: 3,
+                                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                                  child: AnimatedBuilder(
+                                    animation: _progressController,
+                                    builder: (context, child) {
+                                      return LinearProgressIndicator(
+                                        value: index == _currentIndex
+                                            ? _progressController.value
+                                            : (index < _currentIndex ? 1.0 : 0.0),
+                                        backgroundColor: Colors.white.withOpacity(0.3),
+                                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      children: [
+                        const CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.grey,
+                          child: Icon(Icons.newspaper, size: 16, color: Colors.white),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          widget.stories[_currentIndex]['title'] ?? 'Story',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -1810,7 +2138,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final displayCategories = [
       {'name': 'My Feed', '_id': ''},
-      {'name': 'Videos', '_id': 'videos'},
+      {'name': 'Story', '_id': 'story'},
       ..._allCategories,
     ];
     
@@ -1887,8 +2215,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: TabBarView(
                   physics: const NeverScrollableScrollPhysics(),
                   children: displayCategories.map((cat) {
-                    if (cat['name'] == 'Videos') {
-                      return const VideosScreen();
+                    if (cat['name'] == 'Story') {
+                      return const StoryScreen();
                     }
                     return FeedList(
                       categoryName: cat['name'].toString(),
@@ -1982,6 +2310,7 @@ class _FeedListState extends State<FeedList> {
             title: article['title'] ?? 'No Title',
             subtitle: article['summary'] ?? article['content'] ?? '',
             meta: 'ASIAZE • ${_formatDate(article['publishedAt'])}',
+            explanation: article['explanation'],
           ),
         );
       },
@@ -2530,12 +2859,14 @@ class NewsCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final String meta;
+  final String? explanation;
   const NewsCard({
     super.key,
     required this.imageUrl,
     required this.title,
     required this.subtitle,
     required this.meta,
+    this.explanation,
   });
 
   @override
@@ -2549,63 +2880,78 @@ class NewsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Stack(
-            children: [
-              (imageUrl.startsWith('asset:')
-                  ? Image.asset(
-                      imageUrl.replaceFirst('asset:', ''),
-                      height: 200,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    )
-                  : Image.network(
-                      imageUrl,
-                      height: 200,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    )),
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: red,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: ValueListenableBuilder<List<SavedArticle>>(
-                    valueListenable: SavedArticlesStore.saved,
-                    builder: (context, saved, _) {
-                      final isSaved = saved.any((e) => e.title == title);
-                      return Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          GestureDetector(
-                            onTap: () {
-                              SavedArticlesStore.toggle(SavedArticle(
-                                image: imageUrl,
-                                title: title,
-                                subtitle: subtitle,
-                                meta: meta,
-                              ));
-                            },
-                            child: Icon(isSaved ? Icons.bookmark : Icons.bookmark_border, color: Colors.white, size: 18),
-                          ),
-                          const SizedBox(width: 8),
-                          GestureDetector(
-                            onTap: () async {
-                              await Clipboard.setData(ClipboardData(text: title));
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copied')));
-                            },
-                            child: const Icon(Icons.share, color: Colors.white, size: 18),
-                          ),
-                        ],
-                      );
-                    },
+          GestureDetector(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ArticleDetailScreen(
+                    imageUrl: imageUrl,
+                    title: title,
+                    subtitle: subtitle,
+                    meta: meta,
+                    explanation: explanation ?? '',
                   ),
                 ),
-              ),
-            ],
+              );
+            },
+            child: Stack(
+              children: [
+                (imageUrl.startsWith('asset:')
+                    ? Image.asset(
+                        imageUrl.replaceFirst('asset:', ''),
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      )
+                    : Image.network(
+                        imageUrl,
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      )),
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: red,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: ValueListenableBuilder<List<SavedArticle>>(
+                      valueListenable: SavedArticlesStore.saved,
+                      builder: (context, saved, _) {
+                        final isSaved = saved.any((e) => e.title == title);
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                SavedArticlesStore.toggle(SavedArticle(
+                                  image: imageUrl,
+                                  title: title,
+                                  subtitle: subtitle,
+                                  meta: meta,
+                                ));
+                              },
+                              child: Icon(isSaved ? Icons.bookmark : Icons.bookmark_border, color: Colors.white, size: 18),
+                            ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () async {
+                                await Clipboard.setData(ClipboardData(text: title));
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Link copied')));
+                              },
+                              child: const Icon(Icons.share, color: Colors.white, size: 18),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -2624,15 +2970,373 @@ class NewsCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  meta,
-                  style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                Row(
+                  children: [
+                    Text(
+                      meta,
+                      style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                    ),
+                    const Spacer(),
+                    if (explanation != null && explanation!.isNotEmpty)
+                      TextButton.icon(
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (context) => ExplainSheet(
+                              title: title,
+                              summary: subtitle,
+                              explanation: explanation!,
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.lightbulb_outline, size: 16),
+                        label: const Text('Explain', style: TextStyle(fontSize: 12)),
+                        style: TextButton.styleFrom(
+                          foregroundColor: red,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+// ---------------- Article Detail Screen ----------------
+class ArticleDetailScreen extends StatelessWidget {
+  final String imageUrl;
+  final String title;
+  final String subtitle;
+  final String meta;
+  final String explanation;
+
+  const ArticleDetailScreen({
+    super.key,
+    required this.imageUrl,
+    required this.title,
+    required this.subtitle,
+    required this.meta,
+    required this.explanation,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final red = AsiazeApp.primaryRed;
+    return Scaffold(
+      backgroundColor: Colors.grey.shade100,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'ASIAZE',
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share, color: Colors.black),
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: title));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Link copied')),
+              );
+            },
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: imageUrl.startsWith('asset:')
+                    ? Image.asset(
+                        imageUrl.replaceFirst('asset:', ''),
+                        width: double.infinity,
+                        height: 200,
+                        fit: BoxFit.cover,
+                      )
+                    : Image.network(
+                        imageUrl,
+                        width: double.infinity,
+                        height: 200,
+                        fit: BoxFit.cover,
+                      ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  height: 1.3,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade700,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                meta,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                height: 2,
+                width: double.infinity,
+                color: red,
+              ),
+              const SizedBox(height: 16),
+              if (explanation.isNotEmpty)
+                Text(
+                  explanation,
+                  style: TextStyle(
+                    fontSize: 15,
+                    height: 1.7,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+              const SizedBox(height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ValueListenableBuilder<List<SavedArticle>>(
+                    valueListenable: SavedArticlesStore.saved,
+                    builder: (context, saved, _) {
+                      final isSaved = saved.any((e) => e.title == title);
+                      return IconButton(
+                        icon: Icon(
+                          isSaved ? Icons.favorite : Icons.favorite_border,
+                          size: 32,
+                          color: Colors.black,
+                        ),
+                        onPressed: () {
+                          SavedArticlesStore.toggle(SavedArticle(
+                            image: imageUrl,
+                            title: title,
+                            subtitle: subtitle,
+                            meta: meta,
+                          ));
+                        },
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 24),
+                  ValueListenableBuilder<List<SavedArticle>>(
+                    valueListenable: SavedArticlesStore.saved,
+                    builder: (context, saved, _) {
+                      final isSaved = saved.any((e) => e.title == title);
+                      return IconButton(
+                        icon: Icon(
+                          isSaved ? Icons.bookmark : Icons.bookmark_border,
+                          size: 32,
+                          color: Colors.black,
+                        ),
+                        onPressed: () {
+                          SavedArticlesStore.toggle(SavedArticle(
+                            image: imageUrl,
+                            title: title,
+                            subtitle: subtitle,
+                            meta: meta,
+                          ));
+                        },
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 24),
+                  IconButton(
+                    icon: const Icon(Icons.share, size: 32, color: Colors.black),
+                    onPressed: () async {
+                      await Clipboard.setData(ClipboardData(text: title));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Link copied')),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------- Explain Sheet ----------------
+class ExplainSheet extends StatelessWidget {
+  final String title;
+  final String summary;
+  final String explanation;
+
+  const ExplainSheet({
+    super.key,
+    required this.title,
+    required this.summary,
+    required this.explanation,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final red = AsiazeApp.primaryRed;
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Icon(Icons.lightbulb, color: red, size: 24),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Detailed Explanation',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: red.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: red, size: 20),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Summary',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      summary,
+                      style: TextStyle(
+                        fontSize: 15,
+                        height: 1.6,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: red.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.article_outlined, color: red, size: 20),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Detailed Explanation',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      explanation,
+                      style: TextStyle(
+                        fontSize: 15,
+                        height: 1.6,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
