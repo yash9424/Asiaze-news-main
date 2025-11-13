@@ -1958,6 +1958,8 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
   late PageController _pageController;
   late AnimationController _progressController;
   int _currentIndex = 0;
+  bool _showDetails = false;
+  bool _liked = false;
 
   @override
   void initState() {
@@ -1980,6 +1982,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
 
   void _nextStory() {
     if (_currentIndex < widget.stories.length - 1) {
+      setState(() => _showDetails = false);
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
@@ -1991,6 +1994,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
 
   void _previousStory() {
     if (_currentIndex > 0) {
+      setState(() => _showDetails = false);
       _pageController.previousPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
@@ -2011,6 +2015,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
       backgroundColor: Colors.black,
       body: GestureDetector(
         onTapDown: (details) {
+          if (_showDetails) return;
           final screenWidth = MediaQuery.of(context).size.width;
           if (details.globalPosition.dx < screenWidth / 2) {
             _previousStory();
@@ -2027,116 +2032,247 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
               onPageChanged: (index) {
                 setState(() {
                   _currentIndex = index;
+                  _showDetails = false;
+                  _liked = false;
                 });
                 _startProgress();
               },
               itemBuilder: (context, index) {
                 final story = widget.stories[index];
-                final imageUrl = story['image'] ?? '';
+                final hasVideo = story['videoUrl'] != null && story['videoUrl'].toString().isNotEmpty;
+                final hasImage = story['image'] != null && story['image'].toString().isNotEmpty;
                 
-                return Container(
-                  color: Colors.black,
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: Center(
-                          child: imageUrl.startsWith('asset:')
-                              ? Image.asset(
-                                  imageUrl.replaceFirst('asset:', ''),
-                                  fit: BoxFit.contain,
-                                )
-                              : Image.network(
-                                  imageUrl,
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (context, error, stack) {
-                                    return Icon(
-                                      Icons.image,
-                                      size: 100,
-                                      color: Colors.grey.shade600,
-                                    );
-                                  },
-                                ),
+                String mediaUrl = '';
+                if (hasVideo) {
+                  mediaUrl = story['videoUrl'].toString();
+                } else if (hasImage) {
+                  mediaUrl = story['image'].toString();
+                }
+                
+                if (mediaUrl.startsWith('/uploads/')) {
+                  mediaUrl = '${ApiService.baseServerUrl}$mediaUrl';
+                }
+                
+                print('Story $index: hasVideo=$hasVideo, hasImage=$hasImage, mediaUrl=$mediaUrl');
+                
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    mediaUrl.isEmpty
+                        ? Container(
+                            color: Colors.grey.shade800,
+                            child: const Center(
+                              child: Icon(Icons.image_not_supported, size: 80, color: Colors.white54),
+                            ),
+                          )
+                        : hasVideo
+                            ? VideoPlayer(
+                                VideoPlayerController.networkUrl(Uri.parse(mediaUrl))
+                                  ..initialize().then((_) {
+                                    if (index == _currentIndex) {
+                                      VideoPlayerController.networkUrl(Uri.parse(mediaUrl)).play();
+                                    }
+                                  }),
+                              )
+                            : Image.network(
+                                mediaUrl,
+                                fit: BoxFit.cover,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Container(
+                                    color: Colors.black,
+                                    child: const Center(
+                                      child: CircularProgressIndicator(color: Colors.white),
+                                    ),
+                                  );
+                                },
+                                errorBuilder: (context, error, stackTrace) {
+                                  print('Image load error: $error');
+                                  return Container(
+                                    color: Colors.grey.shade800,
+                                    child: const Center(
+                                      child: Icon(Icons.broken_image, size: 80, color: Colors.white54),
+                                    ),
+                                  );
+                                },
+                              ),
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.3),
+                            Colors.transparent,
+                            Colors.transparent,
+                            Colors.black.withOpacity(0.5),
+                          ],
+                          stops: const [0.0, 0.3, 0.6, 1.0],
                         ),
                       ),
-                      if (story['content'] != null && story['content'].toString().isNotEmpty)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          color: Colors.black.withOpacity(0.7),
-                          child: Text(
-                            story['content'].toString(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            SafeArea(
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: List.generate(
-                              widget.stories.length,
-                              (index) => Expanded(
-                                child: Container(
-                                  height: 3,
-                                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                                  child: AnimatedBuilder(
-                                    animation: _progressController,
-                                    builder: (context, child) {
-                                      return LinearProgressIndicator(
-                                        value: index == _currentIndex
-                                            ? _progressController.value
-                                            : (index < _currentIndex ? 1.0 : 0.0),
-                                        backgroundColor: Colors.white.withOpacity(0.3),
-                                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                                      );
-                                    },
+                    ),
+                    if (!_showDetails)
+                      Positioned(
+                        left: 20,
+                        bottom: 20,
+                        child: GestureDetector(
+                          onTap: () => setState(() => _showDetails = true),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20),
+                            child: BackdropFilter(
+                              filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  border: Border.all(color: Colors.white.withOpacity(0.5)),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Text(
+                                  'Read More ↑',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white),
-                          onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    if (!_showDetails)
+                      Positioned(
+                        right: 20,
+                        bottom: 20,
+                        child: Column(
+                          children: [
+                            GestureDetector(
+                              onTap: () => setState(() => _liked = !_liked),
+                              child: Icon(
+                                _liked ? Icons.favorite : Icons.favorite_border,
+                                color: _liked ? Colors.red : Colors.white,
+                                size: 28,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            const Icon(Icons.send, color: Colors.white, size: 28),
+                          ],
                         ),
-                      ],
+                      ),
+                  ],
+                );
+              },
+            ),
+            if (_showDetails)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  child: BackdropFilter(
+                    filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                      ),
+                      padding: const EdgeInsets.all(25),
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.7,
+                      ),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const SizedBox(width: 24),
+                                GestureDetector(
+                                  onTap: () => setState(() => _showDetails = false),
+                                  child: const Icon(Icons.close, color: Colors.white, size: 24),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              widget.stories[_currentIndex]['heading'] ?? 'Story',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              widget.stories[_currentIndex]['description'] ?? '',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                height: 1.6,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Row(
-                      children: [
-                        const CircleAvatar(
-                          radius: 16,
-                          backgroundColor: Colors.grey,
-                          child: Icon(Icons.newspaper, size: 16, color: Colors.white),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          widget.stories[_currentIndex]['title'] ?? 'Story',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
+                ),
+              ),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: List.generate(
+                          widget.stories.length,
+                          (index) => Expanded(
+                            child: Container(
+                              height: 3,
+                              margin: const EdgeInsets.symmetric(horizontal: 2),
+                              child: AnimatedBuilder(
+                                animation: _progressController,
+                                builder: (context, child) {
+                                  return LinearProgressIndicator(
+                                    value: index == _currentIndex
+                                        ? _progressController.value
+                                        : (index < _currentIndex ? 1.0 : 0.0),
+                                    backgroundColor: Colors.white.withOpacity(0.3),
+                                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                  );
+                                },
+                              ),
+                            ),
                           ),
                         ),
-                      ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 50),
+                child: Center(
+                  child: Text(
+                    'asiaze',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1,
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           ],
@@ -2190,7 +2326,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final displayCategories = [
       {'name': lang.translate('my_feed'), '_id': '', 'isTranslated': true},
-      {'name': lang.translate('story'), '_id': 'story', 'isTranslated': true},
       ..._allCategories,
     ];
     
@@ -2216,23 +2351,66 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: Colors.white,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: TabBar(
-                    isScrollable: true,
-                    tabAlignment: TabAlignment.start,
-                    dividerColor: Colors.transparent,
-                    labelColor: red,
-                    unselectedLabelColor: Colors.black87,
-                    indicatorColor: red,
-                    labelStyle: const TextStyle(fontWeight: FontWeight.w700),
-                    unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
-                    indicatorSize: TabBarIndicatorSize.label,
-                    indicatorWeight: 3,
-                    labelPadding: const EdgeInsets.only(right: 16),
-                    tabs: displayCategories.map((cat) {
-                      final isTranslated = cat['isTranslated'] == true;
-                      final text = isTranslated ? cat['name'].toString() : lang.getCategoryLabel(cat);
-                      return Tab(text: text);
-                    }).toList(),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TabBar(
+                          isScrollable: true,
+                          tabAlignment: TabAlignment.start,
+                          dividerColor: Colors.transparent,
+                          labelColor: red,
+                          unselectedLabelColor: Colors.black87,
+                          indicatorColor: red,
+                          labelStyle: const TextStyle(fontWeight: FontWeight.w700),
+                          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
+                          indicatorSize: TabBarIndicatorSize.label,
+                          indicatorWeight: 3,
+                          labelPadding: const EdgeInsets.only(right: 16),
+                          tabs: displayCategories.map((cat) {
+                            final isTranslated = cat['isTranslated'] == true;
+                            final text = isTranslated ? cat['name'].toString() : lang.getCategoryLabel(cat);
+                            return Tab(text: text);
+                          }).toList(),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () async {
+                          final stories = await ApiService.getStories();
+                          if (stories.isNotEmpty && context.mounted) {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => StoryViewerScreen(
+                                  stories: stories,
+                                  initialIndex: 0,
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: red,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.auto_stories, color: Colors.white, size: 16),
+                              const SizedBox(width: 4),
+                              Text(
+                                lang.translate('story'),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -2272,10 +2450,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   physics: const NeverScrollableScrollPhysics(),
                   children: displayCategories.map((cat) {
                     final catName = cat['name'].toString();
-                    final isStory = cat['_id'] == 'story';
-                    if (isStory) {
-                      return const StoryScreen();
-                    }
                     return FeedList(
                       categoryName: catName,
                       categoryId: cat['_id']?.toString(),

@@ -7,6 +7,7 @@ import Category from '@/models/Category';
 export async function GET(req: NextRequest) {
   try {
     await dbConnect();
+    Category;
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
     const category = searchParams.get('category');
@@ -22,6 +23,7 @@ export async function GET(req: NextRequest) {
     if (language) query.languages = language;
 
     const reels = await Reel.find(query)
+      .populate('category', 'name')
       .lean()
       .sort({ createdAt: -1 });
 
