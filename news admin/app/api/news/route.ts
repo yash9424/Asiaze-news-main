@@ -7,9 +7,14 @@ import Category from '@/models/Category';
 export async function GET(req: NextRequest) {
   try {
     await dbConnect();
+    // Ensure models are registered
+    Category;
+    Tag;
+    
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
     const category = searchParams.get('category');
+    const language = searchParams.get('language');
     
     const query: any = {};
     // If status is 'all', show all news (for admin panel)
@@ -19,7 +24,9 @@ export async function GET(req: NextRequest) {
     } else if (!status) {
       query.status = 'published';
     }
-    if (category) query.category = category;
+    // Skip category filter if it's 'story' (that's for stories, not news)
+    if (category && category !== 'story') query.category = category;
+    if (language) query.languages = language;
 
     const news = await News.find(query)
       .populate('category')

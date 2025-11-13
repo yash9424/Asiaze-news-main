@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
     const category = searchParams.get('category');
+    const language = searchParams.get('language');
     
     const query: any = {};
     if (status && status !== 'all') {
@@ -18,6 +19,7 @@ export async function GET(req: NextRequest) {
       query.status = 'published';
     }
     if (category) query.category = category;
+    if (language) query.languages = language;
 
     const reels = await Reel.find(query)
       .lean()

@@ -48,36 +48,33 @@ export default function EditNewsPage({ params }: { params: Promise<{ id: string 
       const data = await res.json()
       const news = data.news
       
-      console.log('Fetched news from DB:', news)
-      console.log('Languages from DB:', news.languages)
-      console.log('Translations from DB:', news.translations)
+      const langMap: any = { 'english': 'EN', 'hindi': 'HIN', 'bengali': 'BEN' }
+      const reverseLangMap: any = { 'EN': 'english', 'HIN': 'hindi', 'BEN': 'bengali' }
       
-      const langs = news.languages || ['EN']
+      // Convert lowercase language names to uppercase codes
+      const langs = (news.languages || ['english']).map((l: string) => langMap[l] || l)
       const currentLang = langs[0]
       
       const translations: any = {
         EN: {
-          title: news.translations?.EN?.title || news.title || '',
-          content: news.translations?.EN?.content || news.content || '',
-          summary: news.translations?.EN?.summary || news.summary || '',
-          explanation: news.translations?.EN?.explanation || news.explanation || ''
+          title: news.translations?.english?.title || news.translations?.EN?.title || news.title || '',
+          content: news.translations?.english?.content || news.translations?.EN?.content || news.content || '',
+          summary: news.translations?.english?.summary || news.translations?.EN?.summary || news.summary || '',
+          explanation: news.translations?.english?.explanation || news.translations?.EN?.explanation || news.explanation || ''
         },
         HIN: {
-          title: news.translations?.HIN?.title || '',
-          content: news.translations?.HIN?.content || '',
-          summary: news.translations?.HIN?.summary || '',
-          explanation: news.translations?.HIN?.explanation || ''
+          title: news.translations?.hindi?.title || news.translations?.HIN?.title || '',
+          content: news.translations?.hindi?.content || news.translations?.HIN?.content || '',
+          summary: news.translations?.hindi?.summary || news.translations?.HIN?.summary || '',
+          explanation: news.translations?.hindi?.explanation || news.translations?.HIN?.explanation || ''
         },
         BEN: {
-          title: news.translations?.BEN?.title || '',
-          content: news.translations?.BEN?.content || '',
-          summary: news.translations?.BEN?.summary || '',
-          explanation: news.translations?.BEN?.explanation || ''
+          title: news.translations?.bengali?.title || news.translations?.BEN?.title || '',
+          content: news.translations?.bengali?.content || news.translations?.BEN?.content || '',
+          summary: news.translations?.bengali?.summary || news.translations?.BEN?.summary || '',
+          explanation: news.translations?.bengali?.explanation || news.translations?.BEN?.explanation || ''
         }
       }
-      
-      console.log('Processed translations:', translations)
-      console.log('Languages to set:', langs)
       
       const formDataToSet = {
         headline: translations[currentLang]?.title || '',
@@ -95,7 +92,6 @@ export default function EditNewsPage({ params }: { params: Promise<{ id: string 
         image: news.image || ''
       }
       
-      console.log('Setting formData with languages:', formDataToSet.languages)
       setFormData(formDataToSet)
     } catch (error) {
       console.error('Failed to fetch news:', error)
@@ -219,10 +215,13 @@ export default function EditNewsPage({ params }: { params: Promise<{ id: string 
 
     setLoading(true)
     try {
-      // Build translations object with proper structure
+      const langMap: any = { 'EN': 'english', 'HIN': 'hindi', 'BEN': 'bengali' }
+      
+      // Build translations object with lowercase language names
       const translations: any = {}
       formData.languages.forEach((lang: string) => {
-        translations[lang] = {
+        const langName = langMap[lang] || lang.toLowerCase()
+        translations[langName] = {
           title: formData.translations[lang]?.title || '',
           content: formData.translations[lang]?.content || '',
           summary: formData.translations[lang]?.summary || '',
@@ -230,8 +229,7 @@ export default function EditNewsPage({ params }: { params: Promise<{ id: string 
         }
       })
 
-      console.log('Edit - Languages:', formData.languages)
-      console.log('Edit - Translations being saved:', translations)
+      const languageNames = formData.languages.map((lang: string) => langMap[lang] || lang.toLowerCase())
 
       const payload = {
         title: formData.translations[formData.languages[0]]?.title || formData.headline,
@@ -241,13 +239,11 @@ export default function EditNewsPage({ params }: { params: Promise<{ id: string 
         image: formData.image,
         category: formData.category,
         tags: formData.tags,
-        languages: formData.languages,
+        languages: languageNames,
         translations: translations,
         source: formData.source,
         publishedAt: formData.timestamp || null
       }
-      
-      console.log('Edit - Full payload:', JSON.stringify(payload, null, 2))
 
       const res = await fetch(`/api/news/${id}`, {
         method: 'PUT',
@@ -255,9 +251,7 @@ export default function EditNewsPage({ params }: { params: Promise<{ id: string 
         body: JSON.stringify(payload)
       })
 
-      console.log('Response status:', res.status)
       const responseData = await res.json()
-      console.log('Response data:', responseData)
 
       if (res.ok) {
         alert('News updated successfully!')
@@ -292,10 +286,10 @@ export default function EditNewsPage({ params }: { params: Promise<{ id: string 
                     setFormData((prev: any) => ({
                       ...prev,
                       currentLang: lang,
-                      headline: prev.translations[lang].title || '',
-                      summary: prev.translations[lang].summary || '',
-                      explanation: prev.translations[lang].explanation || '',
-                      fullArticleLink: prev.translations[lang].content || ''
+                      headline: prev.translations[lang]?.title || '',
+                      summary: prev.translations[lang]?.summary || '',
+                      explanation: prev.translations[lang]?.explanation || '',
+                      fullArticleLink: prev.translations[lang]?.content || ''
                     }))
                   }}
                   style={{

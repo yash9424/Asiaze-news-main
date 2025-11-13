@@ -183,11 +183,14 @@ export default function AddNewsPage() {
 
     setLoading(true)
     try {
+      const langMap: any = { 'EN': 'english', 'HIN': 'hindi', 'BEN': 'bengali' }
+      
       // Build translations object with proper structure
       const translations: any = {}
       formData.languages.forEach(lang => {
         const langKey = lang as keyof typeof formData.translations
-        translations[lang] = {
+        const langName = langMap[lang] || lang.toLowerCase()
+        translations[langName] = {
           title: formData.translations[langKey]?.headline || '',
           content: formData.translations[langKey]?.fullArticleLink || '',
           summary: formData.translations[langKey]?.summary || '',
@@ -198,6 +201,8 @@ export default function AddNewsPage() {
       console.log('Languages:', formData.languages)
       console.log('Translations being saved:', translations)
 
+      const languageNames = formData.languages.map(lang => langMap[lang] || lang.toLowerCase())
+      
       const payload = {
         title: formData.translations[formData.languages[0] as keyof typeof formData.translations]?.headline || formData.headline,
         content: formData.translations[formData.languages[0] as keyof typeof formData.translations]?.fullArticleLink || formData.fullArticleLink,
@@ -206,7 +211,7 @@ export default function AddNewsPage() {
         image: formData.image,
         category: formData.category,
         tags: formData.tags,
-        languages: formData.languages,
+        languages: languageNames,
         translations: translations,
         source: formData.source,
         status: status,

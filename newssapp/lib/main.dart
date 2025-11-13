@@ -2271,11 +2271,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: TabBarView(
                   physics: const NeverScrollableScrollPhysics(),
                   children: displayCategories.map((cat) {
-                    if (cat['name'] == 'Story') {
+                    final catName = cat['name'].toString();
+                    final isStory = cat['_id'] == 'story';
+                    if (isStory) {
                       return const StoryScreen();
                     }
                     return FeedList(
-                      categoryName: cat['name'].toString(),
+                      categoryName: catName,
                       categoryId: cat['_id']?.toString(),
                     );
                   }).toList(),
