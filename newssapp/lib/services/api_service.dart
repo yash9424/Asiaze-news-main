@@ -77,15 +77,18 @@ class ApiService {
       params.add('category=$categoryId');
     }
     if (language != null && language.isNotEmpty) {
-      params.add('language=$language');
+      params.add('language=${language.toUpperCase()}');
     }
     if (params.isNotEmpty) {
       url += '?${params.join('&')}';
     }
+    print('Fetching reels from: $url');
     final response = await http.get(Uri.parse(url));
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body)['reels'] ?? [];
+      final data = jsonDecode(response.body);
+      print('Reels response: $data');
+      return data['reels'] ?? [];
     } else {
       throw Exception('Failed to load reels');
     }

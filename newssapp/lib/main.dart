@@ -1298,9 +1298,11 @@ class _VideoModel {
   final String url;
   final String image;
   final String title;
+  final String description;
+  final String category;
   final String source;
   final String timeAgo;
-  const _VideoModel({required this.url, required this.image, required this.title, required this.source, required this.timeAgo});
+  const _VideoModel({required this.url, required this.image, required this.title, this.description = '', this.category = 'News', required this.source, required this.timeAgo});
 }
 
 class _VideosScreenState extends State<VideosScreen> {
@@ -1322,49 +1324,62 @@ class _VideosScreenState extends State<VideosScreen> {
       final prefs = await SharedPreferences.getInstance();
       final categoryIds = prefs.getStringList('categoryIds') ?? [];
       final langCode = prefs.getString('language') ?? 'EN';
-      final language = langCode == 'HIN' ? 'hindi' : (langCode == 'BEN' ? 'bengali' : 'english');
+      print('Language code: $langCode, Categories: $categoryIds');
       
       List<dynamic> reels;
       if (categoryIds.isEmpty) {
         print('📡 Fetching all reels (no category filter)');
-        reels = await ApiService.getReels(language: language);
+        reels = await ApiService.getReels(language: langCode);
       } else {
         print('📡 Fetching reels for categories: $categoryIds');
         reels = [];
         for (final id in categoryIds) {
-          final categoryReels = await ApiService.getReels(categoryId: id, language: language);
+          final categoryReels = await ApiService.getReels(categoryId: id, language: langCode);
           reels.addAll(categoryReels);
+        }
+        if (reels.isEmpty) {
+          print('⚠️ No reels found for selected categories, fetching all reels');
+          reels = await ApiService.getReels();
         }
       }
       print('✅ Fetched ${reels.length} reels from API');
       if (reels.isNotEmpty) {
-        print('📹 First reel: ${reels[0]['title']} - ${reels[0]['videoUrl']}');
+        print('📹 First reel: ${reels[0]}');
       }
 
       if (reels.isEmpty) {
-        setState(() {
-          _items = [];
-          _loading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _items = [];
+            _loading = false;
+          });
+        }
       } else {
-        setState(() {
-          _items = reels.map((r) {
+        if (mounted) {
+          setState(() {
+            _items = reels.map((r) {
             String videoUrl = r['videoUrl'] ?? '';
-            // Convert relative URL to absolute URL
+            String thumbnail = r['thumbnail'] ?? '';
             if (videoUrl.startsWith('/uploads/')) {
               videoUrl = '${ApiService.baseServerUrl}$videoUrl';
             }
-            print('📹 Video URL: $videoUrl');
-            return _VideoModel(
-              url: videoUrl,
-              image: r['thumbnail'] ?? 'refranceimages/c049d488ea53162e319b73ae144cac43efe0c895.png',
-              title: r['title'] ?? 'News Reel',
-              source: 'ASIAZE',
-              timeAgo: formatPublishedDate(r['publishedAt']),
-            );
-          }).toList();
-          _loading = false;
-        });
+            if (thumbnail.startsWith('/uploads/')) {
+              thumbnail = '${ApiService.baseServerUrl}$thumbnail';
+            }
+            print('📹 Video: $videoUrl, Thumbnail: $thumbnail');
+              return _VideoModel(
+                url: videoUrl,
+                image: thumbnail,
+                title: r['title'] ?? 'News Reel',
+                description: r['description'] ?? '',
+                category: r['category']?['name'] ?? 'News',
+                source: 'ASIAZE',
+                timeAgo: formatPublishedDate(r['publishedAt']),
+              );
+            }).toList();
+            _loading = false;
+          });
+        }
       }
 
       for (final v in _items) {
@@ -1389,10 +1404,12 @@ class _VideosScreenState extends State<VideosScreen> {
       });
     } catch (e) {
       print('Error fetching reels: $e');
-      setState(() {
-        _items = [];
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _items = [];
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -1500,7 +1517,7 @@ class _VideoPageState extends State<_VideoPage> {
   bool _liked = false;
   int _likeCount = 12000;
   bool _saved = false;
-  bool _descExpanded = false;
+  bool _showDetails = false;
 
   String _fmt(Duration d) {
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
@@ -1645,85 +1662,116 @@ class _VideoPageState extends State<_VideoPage> {
             ],
           ),
         ),
-        // Bottom information and progress
-        Positioned(
-          left: 12,
-          right: 12,
-          bottom: 16,
-          child: SafeArea(
-            top: false,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Headline
-                Text(
-                  item.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+        if (!_showDetails)
+          Positioned(
+            left: 20,
+            bottom: 20,
+            child: GestureDetector(
+              onTap: () => setState(() => _showDetails = true),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      border: Border.all(color: Colors.white.withOpacity(0.5)),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      'Read More ↑',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 4),
-                // Source and time
-                Text(
-                  '${item.source} • ${item.timeAgo}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 8),
-                // Summary expandable
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => setState(() => _descExpanded = !_descExpanded),
-                  child: Text(
-                    'This is a captivating summary that provides a brief overview of the video content, ensuring viewers are intrigued to watch more...',
-                    maxLines: _descExpanded ? 10 : 3,
-                    overflow: _descExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.4),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Bottom row: time, swipe hint, tap to open
-                AnimatedBuilder(
-                  animation: controller,
-                  builder: (context, _) {
-                    final pos = controller.value.isInitialized ? controller.value.position : Duration.zero;
-                    final dur = controller.value.isInitialized ? controller.value.duration : Duration.zero;
-                    return Row(
-                      children: [
-                        Text('${_fmt(pos)} / ${_fmt(dur)}', style: const TextStyle(color: Colors.white, fontSize: 12)),
-                        const Spacer(),
-                        const Text('Swipe up  ^', style: TextStyle(color: Colors.white, fontSize: 12)),
-                        const Spacer(),
-                        const Text('Tap to open article', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 6),
-                // Progress bar
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    return AnimatedBuilder(
-                      animation: controller,
-                      builder: (context, _) {
-                        final tot = controller.value.isInitialized ? controller.value.duration.inMilliseconds : 1;
-                        final pos = controller.value.isInitialized ? controller.value.position.inMilliseconds : 0;
-                        final double progress = constraints.maxWidth * (pos / (tot == 0 ? 1 : tot));
-                        return Stack(
-                          children: [
-                            Container(height: 3, width: constraints.maxWidth, color: Colors.white24),
-                            Container(height: 3, width: progress, color: red),
-                          ],
-                        );
-                      },
-                    );
-                  },
-                ),
-              ],
+              ),
             ),
           ),
-        ),
+        if (_showDetails)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              child: BackdropFilter(
+                filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  padding: const EdgeInsets.all(25),
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.7,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: red,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                item.category,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () => setState(() => _showDetails = false),
+                              child: const Icon(Icons.close, color: Colors.white, size: 24),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          item.title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'By ${item.source} • ${item.timeAgo}',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        if (item.description.isNotEmpty)
+                          Text(
+                            item.description,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              height: 1.6,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -2303,12 +2351,14 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _fetchCategories() async {
     try {
       final categories = await ApiService.getCategories();
-      setState(() {
-        _allCategories = List<Map<String, dynamic>>.from(categories);
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _allCategories = List<Map<String, dynamic>>.from(categories);
+          _loading = false;
+        });
+      }
     } catch (e) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -2512,12 +2562,14 @@ class _FeedListState extends State<FeedList> {
       } else {
         news = await ApiService.getNews(categoryId: widget.categoryId, language: language);
       }
-      setState(() {
-        _news = news;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _news = news;
+          _loading = false;
+        });
+      }
     } catch (e) {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 

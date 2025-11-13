@@ -20,6 +20,16 @@ const nextConfig = {
         headers: [
           { key: "Access-Control-Allow-Origin", value: "*" },
           { key: "Access-Control-Allow-Methods", value: "GET" },
+          { key: "Access-Control-Allow-Headers", value: "Range" },
+        ]
+      },
+      {
+        source: "/uploads/videos/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Methods", value: "GET" },
+          { key: "Access-Control-Allow-Headers", value: "Range" },
+          { key: "Accept-Ranges", value: "bytes" },
         ]
       }
     ]

@@ -20,13 +20,15 @@ export async function GET(req: NextRequest) {
       query.status = 'published';
     }
     if (category) query.category = category;
-    if (language) query.languages = language;
+    if (language) query.language = language;
 
+    console.log('Reels query:', query);
     const reels = await Reel.find(query)
       .populate('category', 'name')
       .lean()
       .sort({ createdAt: -1 });
-
+    
+    console.log(`Found ${reels.length} reels`);
     return NextResponse.json({ reels });
   } catch (error: any) {
     console.error('Error fetching reels:', error);
