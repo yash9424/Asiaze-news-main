@@ -6,7 +6,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   await dbConnect();
   const { id } = await params;
   const body = await req.json();
+  console.log('Updating reward with data:', body);
   const reward = await Reward.findByIdAndUpdate(id, body, { new: true });
+  console.log('Updated reward:', reward);
   if (!reward) {
     return NextResponse.json({ error: 'Reward not found' }, { status: 404 });
   }

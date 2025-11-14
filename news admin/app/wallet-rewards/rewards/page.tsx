@@ -9,7 +9,8 @@ export default function RewardManagement() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingReward, setEditingReward] = useState<any>(null);
-  const [formData, setFormData] = useState({ name: '', points: 0, available: true });
+  const [formData, setFormData] = useState({ name: '', points: 0, available: true, imageUrl: '', description: '', terms: '', redeemCode: '' });
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     fetchRewards();
@@ -46,7 +47,7 @@ export default function RewardManagement() {
       }
       setShowModal(false);
       setEditingReward(null);
-      setFormData({ name: '', points: 0, available: true });
+      setFormData({ name: '', points: 0, available: true, imageUrl: '', description: '', terms: '', redeemCode: '' });
       fetchRewards();
     } catch (err) {
       console.error('Failed to save reward:', err);
@@ -56,8 +57,25 @@ export default function RewardManagement() {
 
   const handleEdit = (reward: any) => {
     setEditingReward(reward);
-    setFormData({ name: reward.name, points: reward.points, available: reward.available });
+    setFormData({ name: reward.name, points: reward.points, available: reward.available, imageUrl: reward.imageUrl || '', description: reward.description || '', terms: reward.terms || '', redeemCode: reward.redeemCode || '' });
     setShowModal(true);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const data = new FormData();
+    data.append('file', file);
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: data });
+      const result = await res.json();
+      setFormData({...formData, imageUrl: result.url});
+    } catch (error) {
+      alert('Failed to upload image');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -81,7 +99,7 @@ export default function RewardManagement() {
       <div className={styles.header}>
         <h1>Reward Management</h1>
         <p>Manage available rewards and redemptions</p>
-        <button className={styles.btnAdd} onClick={() => { setShowModal(true); setEditingReward(null); setFormData({ name: '', points: 0, available: true }); }}>+ Add New Reward</button>
+        <button className={styles.btnAdd} onClick={() => { setShowModal(true); setEditingReward(null); setFormData({ name: '', points: 0, available: true, imageUrl: '', description: '', terms: '', redeemCode: '' }); }}>+ Add New Reward</button>
       </div>
 
       {loading ? (
@@ -89,7 +107,8 @@ export default function RewardManagement() {
       ) : (
         <div className={styles.grid}>
           {rewards.map((reward) => (
-            <div key={reward.id} className={styles.card}>
+            <div key={reward._id} className={styles.card}>
+              {reward.imageUrl && <img src={reward.imageUrl} alt={reward.name} className={styles.cardImage} />}
               <div className={styles.cardHeader}>
                 <h3>{reward.name}</h3>
                 <span className={reward.available ? styles.badgeActive : styles.badgeInactive}>
@@ -97,14 +116,27 @@ export default function RewardManagement() {
                 </span>
               </div>
               <div className={styles.cardBody}>
+                {reward.description && <p className={styles.description}>{reward.description}</p>}
                 <div className={styles.info}>
                   <span className={styles.label}>Points Required:</span>
                   <span className={styles.value}>{reward.points} pts</span>
                 </div>
+                {reward.redeemCode && (
+                  <div className={styles.info}>
+                    <span className={styles.label}>Redeem Code:</span>
+                    <span className={styles.value}>{reward.redeemCode}</span>
+                  </div>
+                )}
                 <div className={styles.info}>
                   <span className={styles.label}>Times Redeemed:</span>
                   <span className={styles.value}>{reward.redeemed}</span>
                 </div>
+                {reward.terms && (
+                  <div className={styles.termsSection}>
+                    <span className={styles.label}>Terms & Conditions:</span>
+                    <p className={styles.termsText}>{reward.terms}</p>
+                  </div>
+                )}
               </div>
               <div className={styles.cardFooter}>
                 <button className={styles.btnEdit} onClick={() => handleEdit(reward)}>Edit</button>
@@ -124,8 +156,26 @@ export default function RewardManagement() {
               <input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="e.g. ₹100 Amazon Gift Card" />
             </div>
             <div className={styles.formGroup}>
+              <label>Description</label>
+              <textarea value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} placeholder="Reward description" rows={3} />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Upload Image</label>
+              <input type="file" accept="image/*" onChange={handleImageUpload} disabled={uploading} />
+              {uploading && <p>Uploading...</p>}
+              {formData.imageUrl && <img src={formData.imageUrl} alt="Preview" style={{ marginTop: '10px', maxWidth: '150px', borderRadius: '8px' }} />}
+            </div>
+            <div className={styles.formGroup}>
               <label>Points Required</label>
               <input type="number" value={formData.points} onChange={(e) => setFormData({...formData, points: Number(e.target.value)})} placeholder="500" />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Terms and Conditions</label>
+              <textarea value={formData.terms} onChange={(e) => setFormData({...formData, terms: e.target.value})} placeholder="Terms and conditions" rows={4} />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Redeem Code</label>
+              <input type="text" value={formData.redeemCode} onChange={(e) => setFormData({...formData, redeemCode: e.target.value})} placeholder="e.g. GIFT100" />
             </div>
             <div className={styles.formGroup}>
               <label>

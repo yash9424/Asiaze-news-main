@@ -11,6 +11,8 @@ export async function GET() {
 export async function POST(req: Request) {
   await dbConnect();
   const body = await req.json();
+  console.log('Creating reward with data:', body);
   const reward = await Reward.create(body);
+  console.log('Created reward:', reward);
   return NextResponse.json(reward, { status: 201 });
 }
