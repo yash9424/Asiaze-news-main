@@ -1,7 +1,7 @@
 'use client'
 
 import Sidebar from '@/components/Sidebar'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import styles from './page.module.css'
 
 export default function PushNotificationsPage() {
@@ -9,24 +9,115 @@ export default function PushNotificationsPage() {
     title: '',
     message: '',
     link: '',
-    audienceType: 'allUsers',
-    category: 'Politics',
-    language: 'EN',
-    sendType: 'now',
+    allUsers: false,
+    categories: [] as string[],
+    languages: [] as string[],
+    sendNow: false,
+    scheduleForLater: false,
     scheduleDate: ''
   })
 
-  const [notifications] = useState([
-    { id: 1, title: 'New Update Released', audience: 'All Users', status: 'Sent', dateTime: '2023-10-25 14:30' },
-    { id: 2, title: 'Election Updates', audience: 'Politics', status: 'Scheduled', dateTime: '2023-10-26 09:00' },
-    { id: 3, title: 'Sports Highlights', audience: 'Sports', status: 'Draft', dateTime: '2023-10-24 17:00' },
-    { id: 4, title: 'Tech News', audience: 'Technology', status: 'Sent', dateTime: '2023-10-23 11:45' },
-    { id: 5, title: 'Finance Tips', audience: 'Finance', status: 'Sent', dateTime: '2023-10-22 08:20' }
-  ])
+  const [timeFilter, setTimeFilter] = useState('1')
+  const [recentContent, setRecentContent] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchRecentContent()
+  }, [timeFilter])
+
+  const fetchRecentContent = async () => {
+    setLoading(true)
+    try {
+      const hours = parseInt(timeFilter)
+      const sinceDate = new Date(Date.now() - hours * 60 * 60 * 1000)
+      
+      const [newsRes, storiesRes, reelsRes] = await Promise.all([
+        fetch('/api/news?status=all').then(r => r.json()),
+        fetch('/api/stories').then(r => r.json()),
+        fetch('/api/reels?status=all').then(r => r.json())
+      ])
+
+      const newsData = newsRes.news || []
+      const storiesData = storiesRes.stories || []
+      const reelsData = reelsRes.reels || []
+
+      const filterByTime = (item: any) => {
+        const itemDate = new Date(item.publishedAt || item.createdAt)
+        return itemDate >= sinceDate
+      }
+
+      const combined = [
+        ...newsData.filter(filterByTime).map((item: any) => ({ ...item, type: 'News', publishedAt: item.publishedAt || item.createdAt })),
+        ...storiesData.filter(filterByTime).map((item: any) => ({ ...item, type: 'Story', publishedAt: item.publishedAt || item.createdAt })),
+        ...reelsData.filter(filterByTime).map((item: any) => ({ ...item, type: 'Reel', publishedAt: item.publishedAt || item.createdAt }))
+      ].sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+
+      setRecentContent(combined)
+    } catch (error) {
+      console.error('Error fetching content:', error)
+    }
+    setLoading(false)
+  }
+
+  const formatDateTime = (date: string) => {
+    return new Date(date).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const handleSelectItem = (itemId: string) => {
+    setSelectedItem(itemId)
+    const item = recentContent.find(c => c._id === itemId)
+    if (item) {
+      setFormData(prev => ({
+        ...prev,
+        title: item.title || item.heading || '',
+        message: (item.summary || item.description || item.content || '').substring(0, 200),
+        link: item._id || ''
+      }))
+    }
+  }
+
+  const getLanguages = (item: any) => {
+    if (item.languages && Array.isArray(item.languages)) {
+      return item.languages.join(', ')
+    }
+    if (item.language) {
+      return item.language
+    }
+    return 'N/A'
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleCheckbox = (name: string, checked: boolean) => {
+    setFormData(prev => ({ ...prev, [name]: checked }))
+  }
+
+  const handleCategoryToggle = (category: string) => {
+    setFormData(prev => ({
+      ...prev,
+      categories: prev.categories.includes(category)
+        ? prev.categories.filter(c => c !== category)
+        : [...prev.categories, category]
+    }))
+  }
+
+  const handleLanguageToggle = (language: string) => {
+    setFormData(prev => ({
+      ...prev,
+      languages: prev.languages.includes(language)
+        ? prev.languages.filter(l => l !== language)
+        : [...prev.languages, language]
+    }))
   }
 
   const handleSend = () => console.log('Send:', formData)
@@ -39,6 +130,43 @@ export default function PushNotificationsPage() {
         <div className={styles.content}>
           <div className={styles.leftSection}>
             <h1 className={styles.title}>Send Notification</h1>
+            
+            {selectedItem && (() => {
+              const item = recentContent.find(c => c._id === selectedItem)
+              return item ? (
+                <div style={{ 
+                  padding: '15px', 
+                  marginBottom: '20px', 
+                  backgroundColor: '#f0f9ff', 
+                  borderRadius: '8px',
+                  border: '1px solid #0ea5e9',
+                  position: 'relative'
+                }}>
+                  <button 
+                    onClick={() => setSelectedItem(null)}
+                    style={{
+                      position: 'absolute',
+                      top: '10px',
+                      right: '10px',
+                      background: '#ef4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '5px 10px',
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                  >
+                    Unselect
+                  </button>
+                  <h3 style={{ margin: '0 0 10px 0', color: '#0369a1' }}>Selected Content</h3>
+                  <p style={{ margin: '5px 0' }}><strong>Type:</strong> {item.type}</p>
+                  <p style={{ margin: '5px 0' }}><strong>Title:</strong> {item.title || item.heading || 'Untitled'}</p>
+                  <p style={{ margin: '5px 0' }}><strong>Category:</strong> {item.category?.name || 'N/A'}</p>
+                  <p style={{ margin: '5px 0' }}><strong>Language:</strong> {getLanguages(item)}</p>
+                </div>
+              ) : null
+            })()}
 
             <input
               type="text"
@@ -75,80 +203,66 @@ export default function PushNotificationsPage() {
               
               <label className={styles.radioLabel}>
                 <input
-                  type="radio"
-                  name="audienceType"
-                  value="allUsers"
-                  checked={formData.audienceType === 'allUsers'}
-                  onChange={handleChange}
+                  type="checkbox"
+                  checked={formData.allUsers}
+                  onChange={(e) => handleCheckbox('allUsers', e.target.checked)}
                 />
                 All Users
               </label>
 
-              <label className={styles.radioLabel}>
-                <input
-                  type="radio"
-                  name="audienceType"
-                  value="byCategory"
-                  checked={formData.audienceType === 'byCategory'}
-                  onChange={handleChange}
-                />
-                By Category
-              </label>
+              {/* <div style={{ marginTop: '10px' }}>
+                <strong>By Category:</strong>
+                <div style={{ marginLeft: '20px', marginTop: '5px' }}>
+                  {['Politics', 'Entertainment', 'Finance', 'Sports', 'Technology'].map(cat => (
+                    <label key={cat} className={styles.radioLabel}>
+                      <input
+                        type="checkbox"
+                        checked={formData.categories.includes(cat)}
+                        onChange={() => handleCategoryToggle(cat)}
+                      />
+                      {cat}
+                    </label>
+                  ))}
+                </div>
+              </div> */}
 
-              {formData.audienceType === 'byCategory' && (
-                <select name="category" value={formData.category} onChange={handleChange} className={styles.select}>
-                  <option>Politics</option>
-                  <option>Entertainment</option>
-                  <option>Finance</option>
-                  <option>Sports</option>
-                  <option>Technology</option>
-                </select>
-              )}
-
-              <label className={styles.radioLabel}>
-                <input
-                  type="radio"
-                  name="audienceType"
-                  value="byLanguage"
-                  checked={formData.audienceType === 'byLanguage'}
-                  onChange={handleChange}
-                />
-                By Language
-              </label>
-
-              {formData.audienceType === 'byLanguage' && (
-                <select name="language" value={formData.language} onChange={handleChange} className={styles.select}>
-                  <option value="EN">EN</option>
-                  <option value="HIN">HIN</option>
-                  <option value="BEN">BEN</option>
-                </select>
-              )}
+              <div style={{ marginTop: '10px' }}>
+                <strong>By Language:</strong>
+                <div style={{ marginLeft: '20px', marginTop: '5px' }}>
+                  {['EN', 'HIN', 'BEN'].map(lang => (
+                    <label key={lang} className={styles.radioLabel}>
+                      <input
+                        type="checkbox"
+                        checked={formData.languages.includes(lang)}
+                        onChange={() => handleLanguageToggle(lang)}
+                      />
+                      {lang}
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className={styles.section}>
               <label className={styles.radioLabel}>
                 <input
-                  type="radio"
-                  name="sendType"
-                  value="now"
-                  checked={formData.sendType === 'now'}
-                  onChange={handleChange}
+                  type="checkbox"
+                  checked={formData.sendNow}
+                  onChange={(e) => handleCheckbox('sendNow', e.target.checked)}
                 />
                 Send Now
               </label>
 
               <label className={styles.radioLabel}>
                 <input
-                  type="radio"
-                  name="sendType"
-                  value="schedule"
-                  checked={formData.sendType === 'schedule'}
-                  onChange={handleChange}
+                  type="checkbox"
+                  checked={formData.scheduleForLater}
+                  onChange={(e) => handleCheckbox('scheduleForLater', e.target.checked)}
                 />
                 Schedule for Later
               </label>
 
-              {formData.sendType === 'schedule' && (
+              {formData.scheduleForLater && (
                 <input
                   type="datetime-local"
                   name="scheduleDate"
@@ -166,42 +280,72 @@ export default function PushNotificationsPage() {
           </div>
 
           <div className={styles.rightSection}>
-            <h1 className={styles.title}>Past Notifications</h1>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h1 className={styles.title}>Recent Published Content</h1>
+              <select 
+                value={timeFilter} 
+                onChange={(e) => setTimeFilter(e.target.value)} 
+                className={styles.select}
+                style={{ width: 'auto', padding: '8px 12px' }}
+              >
+                <option value="1">Last 1 Hour</option>
+                <option value="6">Last 6 Hours</option>
+                <option value="12">Last 12 Hours</option>
+                <option value="24">Last 24 Hours</option>
+              </select>
+            </div>
 
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Audience</th>
-                  <th>Status</th>
-                  <th>Date & Time</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {notifications.map(notif => (
-                  <tr key={notif.id}>
-                    <td>{notif.title}</td>
-                    <td>{notif.audience}</td>
-                    <td>
-                      <span className={
-                        notif.status === 'Sent' ? styles.statusSent :
-                        notif.status === 'Scheduled' ? styles.statusScheduled :
-                        styles.statusDraft
-                      }>
-                        {notif.status}
-                      </span>
-                    </td>
-                    <td>{notif.dateTime}</td>
-                    <td>
-                      <a href="#" className={styles.link}>View</a>
-                      <a href="#" className={styles.link}>Resend</a>
-                      <a href="#" className={styles.linkDelete}>Delete</a>
-                    </td>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>Loading...</div>
+            ) : (
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Select</th>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                    <th>Language</th>
+                    <th>Published At</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {recentContent.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', padding: '40px' }}>
+                        No content published in the selected time range
+                      </td>
+                    </tr>
+                  ) : (
+                    recentContent.map((item, index) => (
+                      <tr key={`${item.type}-${item._id || index}`}>
+                        <td>
+                          <input 
+                            type="radio" 
+                            name="selectedContent"
+                            checked={selectedItem === item._id}
+                            onChange={() => handleSelectItem(item._id)}
+                          />
+                        </td>
+                        <td>{item.title || item.heading || 'Untitled'}</td>
+                        <td>
+                          <span className={
+                            item.type === 'News' ? styles.statusSent :
+                            item.type === 'Story' ? styles.statusScheduled :
+                            styles.statusDraft
+                          }>
+                            {item.type}
+                          </span>
+                        </td>
+                        <td>{item.category?.name || 'N/A'}</td>
+                        <td>{getLanguages(item)}</td>
+                        <td>{formatDateTime(item.publishedAt)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </div>
