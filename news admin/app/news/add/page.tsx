@@ -53,12 +53,20 @@ export default function AddNewsPage() {
   })
 
   const translateText = async (text: string, targetLang: string) => {
+    if (!text || text.trim() === '') return text
+    
     try {
       const res = await fetch('/api/translate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, targetLang })
       })
+      
+      if (!res.ok) {
+        console.error('Translation API error:', res.status)
+        return text
+      }
+      
       const data = await res.json()
       return data.translatedText || text
     } catch (error) {
@@ -362,15 +370,21 @@ export default function AddNewsPage() {
                             if (e.target.checked && !formData.languages.includes(lang)) {
                               let translatedHeadline, translatedSummary, translatedExplanation
                               
+                              // Always translate from English source
+                              const sourceHeadline = formData.translations.EN.headline || formData.headline
+                              const sourceSummary = formData.translations.EN.summary || formData.summary
+                              const sourceExplanation = formData.translations.EN.explanation || formData.explanation
+                              const sourceLink = formData.translations.EN.fullArticleLink || formData.fullArticleLink
+                              
                               if (lang === 'EN') {
-                                translatedHeadline = formData.headline
-                                translatedSummary = formData.summary
-                                translatedExplanation = formData.explanation
+                                translatedHeadline = sourceHeadline
+                                translatedSummary = sourceSummary
+                                translatedExplanation = sourceExplanation
                               } else {
                                 const targetLangCode = lang === 'HIN' ? 'hi' : 'bn'
-                                translatedHeadline = formData.headline ? await translateText(formData.headline, targetLangCode) : ''
-                                translatedSummary = formData.summary ? await translateText(formData.summary, targetLangCode) : ''
-                                translatedExplanation = formData.explanation ? await translateText(formData.explanation, targetLangCode) : ''
+                                translatedHeadline = sourceHeadline ? await translateText(sourceHeadline, targetLangCode) : ''
+                                translatedSummary = sourceSummary ? await translateText(sourceSummary, targetLangCode) : ''
+                                translatedExplanation = sourceExplanation ? await translateText(sourceExplanation, targetLangCode) : ''
                               }
                               
                               setFormData(prev => {
@@ -384,7 +398,7 @@ export default function AddNewsPage() {
                                       headline: translatedHeadline,
                                       summary: translatedSummary,
                                       explanation: translatedExplanation,
-                                      fullArticleLink: prev.fullArticleLink
+                                      fullArticleLink: sourceLink
                                     }
                                   }
                                 }

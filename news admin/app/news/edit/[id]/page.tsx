@@ -385,15 +385,21 @@ export default function EditNewsPage({ params }: { params: Promise<{ id: string 
                             if (e.target.checked && !formData.languages.includes(lang)) {
                               let translatedHeadline, translatedSummary, translatedExplanation
                               
+                              // Always translate from English source
+                              const sourceHeadline = formData.translations.EN?.title || formData.headline
+                              const sourceSummary = formData.translations.EN?.summary || formData.summary
+                              const sourceExplanation = formData.translations.EN?.explanation || formData.explanation
+                              const sourceLink = formData.translations.EN?.content || formData.fullArticleLink
+                              
                               if (lang === 'EN') {
-                                translatedHeadline = formData.headline
-                                translatedSummary = formData.summary
-                                translatedExplanation = formData.explanation
+                                translatedHeadline = sourceHeadline
+                                translatedSummary = sourceSummary
+                                translatedExplanation = sourceExplanation
                               } else {
                                 const targetLangCode = lang === 'HIN' ? 'hi' : 'bn'
-                                translatedHeadline = formData.headline ? await translateText(formData.headline, targetLangCode) : ''
-                                translatedSummary = formData.summary ? await translateText(formData.summary, targetLangCode) : ''
-                                translatedExplanation = formData.explanation ? await translateText(formData.explanation, targetLangCode) : ''
+                                translatedHeadline = sourceHeadline ? await translateText(sourceHeadline, targetLangCode) : ''
+                                translatedSummary = sourceSummary ? await translateText(sourceSummary, targetLangCode) : ''
+                                translatedExplanation = sourceExplanation ? await translateText(sourceExplanation, targetLangCode) : ''
                               }
                               
                               setFormData((prev: any) => {
@@ -407,7 +413,7 @@ export default function EditNewsPage({ params }: { params: Promise<{ id: string 
                                       title: translatedHeadline,
                                       summary: translatedSummary,
                                       explanation: translatedExplanation,
-                                      content: prev.fullArticleLink
+                                      content: sourceLink
                                     }
                                   }
                                 }
