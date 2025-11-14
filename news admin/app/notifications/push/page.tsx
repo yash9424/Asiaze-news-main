@@ -120,7 +120,73 @@ export default function PushNotificationsPage() {
     }))
   }
 
-  const handleSend = () => console.log('Send:', formData)
+  const handleSend = async () => {
+    if (!selectedItem) {
+      alert('Please select a content item first')
+      return
+    }
+
+    const item = recentContent.find(c => c._id === selectedItem)
+    if (!item) return
+
+    try {
+      // Prepare multi-language notification data
+      const notificationData = {
+        contentId: item._id,
+        contentType: item.type,
+        translations: {
+          english: {
+            title: item.translations?.english?.title || item.title || '',
+            message: (item.translations?.english?.summary || item.summary || '').substring(0, 200)
+          },
+          hindi: {
+            title: item.translations?.hindi?.title || item.title || '',
+            message: (item.translations?.hindi?.summary || item.summary || '').substring(0, 200)
+          },
+          bengali: {
+            title: item.translations?.bengali?.title || item.title || '',
+            message: (item.translations?.bengali?.summary || item.summary || '').substring(0, 200)
+          }
+        },
+        link: formData.link,
+        audience: {
+          allUsers: formData.allUsers,
+          languages: formData.languages.length > 0 ? formData.languages : ['EN', 'HIN', 'BEN']
+        },
+        sendNow: formData.sendNow,
+        scheduleDate: formData.scheduleForLater ? formData.scheduleDate : null
+      }
+
+      const response = await fetch('/api/notifications/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(notificationData)
+      })
+
+      if (response.ok) {
+        alert('Notification sent successfully in all languages!')
+        setSelectedItem(null)
+        setFormData({
+          title: '',
+          message: '',
+          link: '',
+          allUsers: false,
+          categories: [],
+          languages: [],
+          sendNow: false,
+          scheduleForLater: false,
+          scheduleDate: ''
+        })
+      } else {
+        const error = await response.json()
+        alert(`Failed to send notification: ${error.message}`)
+      }
+    } catch (error) {
+      console.error('Error sending notification:', error)
+      alert('Failed to send notification')
+    }
+  }
+
   const handleDraft = () => console.log('Draft:', formData)
 
   return (

@@ -157,4 +157,14 @@ class ApiService {
       throw Exception('Failed to award points');
     }
   }
+
+  // Get notifications for user
+  static Future<List<dynamic>> getNotifications(String language) async {
+    final response = await http.get(Uri.parse('$baseUrl/notifications?language=$language'));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body)['notifications'] ?? [];
+    } else {
+      throw Exception('Failed to load notifications');
+    }
+  }
 }

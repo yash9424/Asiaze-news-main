@@ -981,44 +981,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => Scaffold(
-                            backgroundColor: Colors.white,
-                            appBar: AppBar(
-                              leading: IconButton(
-                                icon: const Icon(Icons.arrow_back),
-                                onPressed: () => Navigator.of(context).maybePop(),
-                              ),
-                              title: const Text('Notifications'),
-                              centerTitle: true,
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.black,
-                              elevation: 0.5,
-                            ),
-                            body: ListView.separated(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: 4,
-                              separatorBuilder: (_, __) => const SizedBox(height: 12),
-                              itemBuilder: (context, i) {
-                                final titles = [
-                                  'Breaking: Major policy update',
-                                  'New Sports Story available',
-                                  'Entertainment news: Celebrity interview',
-                                  'Finance update: Market trends',
-                                ];
-                                final times = ['5m ago', '1h ago', '2h ago', '3h ago'];
-                                final highlight = i == 0;
-                                return Card(
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  elevation: 0.5,
-                                  child: ListTile(
-                                    leading: Icon(Icons.notifications, color: highlight ? AsiazeApp.primaryRed : Colors.black87),
-                                    title: Text(titles[i], style: const TextStyle(fontWeight: FontWeight.w700)),
-                                    subtitle: Text(times[i]),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
+                          builder: (_) => const NotificationsScreen(),
                         ),
                       );
                     },
@@ -4125,6 +4088,122 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ---------------- Notifications Screen ----------------
+class NotificationsScreen extends StatefulWidget {
+  const NotificationsScreen({super.key});
+
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  List<dynamic> _notifications = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchNotifications();
+  }
+
+  Future<void> _fetchNotifications() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final langCode = prefs.getString('language') ?? 'EN';
+      final notifications = await ApiService.getNotifications(langCode);
+      setState(() {
+        _notifications = notifications;
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() => _loading = false);
+    }
+  }
+
+  String _formatTime(dynamic sentAt) {
+    if (sentAt == null) return 'Recently';
+    try {
+      final dt = DateTime.parse(sentAt.toString());
+      final diff = DateTime.now().difference(dt);
+      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+      if (diff.inHours < 24) return '${diff.inHours}h ago';
+      return '${diff.inDays}d ago';
+    } catch (e) {
+      return 'Recently';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
+        title: const Text('Notifications'),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0.5,
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _notifications.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.notifications_none, size: 64, color: Colors.grey.shade400),
+                      const SizedBox(height: 16),
+                      Text('No notifications yet', style: TextStyle(color: Colors.grey.shade600)),
+                    ],
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _notifications.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, i) {
+                    final notif = _notifications[i];
+                    final highlight = i == 0;
+                    return Card(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0.5,
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.notifications,
+                          color: highlight ? AsiazeApp.primaryRed : Colors.black87,
+                        ),
+                        title: Text(
+                          notif['title'] ?? 'Notification',
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
+                            Text(notif['message'] ?? ''),
+                            const SizedBox(height: 4),
+                            Text(
+                              _formatTime(notif['sentAt']),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        isThreeLine: true,
+                      ),
+                    );
+                  },
+                ),
     );
   }
 }
