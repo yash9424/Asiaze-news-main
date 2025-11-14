@@ -2403,26 +2403,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Row(
                     children: [
-                      Expanded(
-                        child: TabBar(
-                          isScrollable: true,
-                          tabAlignment: TabAlignment.start,
-                          dividerColor: Colors.transparent,
-                          labelColor: red,
-                          unselectedLabelColor: Colors.black87,
-                          indicatorColor: red,
-                          labelStyle: const TextStyle(fontWeight: FontWeight.w700),
-                          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
-                          indicatorSize: TabBarIndicatorSize.label,
-                          indicatorWeight: 3,
-                          labelPadding: const EdgeInsets.only(right: 16),
-                          tabs: displayCategories.map((cat) {
-                            final isTranslated = cat['isTranslated'] == true;
-                            final text = isTranslated ? cat['name'].toString() : lang.getCategoryLabel(cat);
-                            return Tab(text: text);
-                          }).toList(),
-                        ),
-                      ),
                       GestureDetector(
                         onTap: () async {
                           final stories = await ApiService.getStories();
@@ -2438,7 +2418,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           }
                         },
                         child: Container(
-                          margin: const EdgeInsets.only(right: 16),
+                          margin: const EdgeInsets.only(right: 12),
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: red,
@@ -2458,6 +2438,26 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ],
                           ),
+                        ),
+                      ),
+                      Expanded(
+                        child: TabBar(
+                          isScrollable: true,
+                          tabAlignment: TabAlignment.start,
+                          dividerColor: Colors.transparent,
+                          labelColor: red,
+                          unselectedLabelColor: Colors.black87,
+                          indicatorColor: red,
+                          labelStyle: const TextStyle(fontWeight: FontWeight.w700),
+                          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500),
+                          indicatorSize: TabBarIndicatorSize.label,
+                          indicatorWeight: 3,
+                          labelPadding: const EdgeInsets.only(right: 16),
+                          tabs: displayCategories.map((cat) {
+                            final isTranslated = cat['isTranslated'] == true;
+                            final text = isTranslated ? cat['name'].toString() : lang.getCategoryLabel(cat);
+                            return Tab(text: text);
+                          }).toList(),
                         ),
                       ),
                     ],
