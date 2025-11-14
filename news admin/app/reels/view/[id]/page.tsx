@@ -7,8 +7,13 @@ import styles from './page.module.css'
 
 export default function ViewReelPage({ params }: any) {
   const router = useRouter()
+  const [reelId, setReelId] = React.useState<string | null>(null)
   const [reel, setReel] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+
+  React.useEffect(() => {
+    params.then((p: any) => setReelId(p.id))
+  }, [params])
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [isMuted, setIsMuted] = useState(true)
@@ -71,16 +76,18 @@ export default function ViewReelPage({ params }: any) {
   }, [isDragging])
 
   useEffect(() => {
+    if (!reelId) return
     fetchReel()
     const interval = setInterval(() => {
       fetchReel()
     }, 5000)
     return () => clearInterval(interval)
-  }, [params.id])
+  }, [reelId])
 
   const fetchReel = async () => {
+    if (!reelId) return
     try {
-      const res = await fetch(`/api/reels/${params.id}`, { cache: 'no-store' })
+      const res = await fetch(`/api/reels/${reelId}`, { cache: 'no-store' })
       const data = await res.json()
       setReel(data.reel)
     } catch (err) {
@@ -91,10 +98,10 @@ export default function ViewReelPage({ params }: any) {
   }
 
   const handlePublish = async () => {
-    if (!confirm('Publish this reel?')) return
+    if (!reelId || !confirm('Publish this reel?')) return
     
     try {
-      const res = await fetch(`/api/reels/${params.id}`, {
+      const res = await fetch(`/api/reels/${reelId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -283,7 +290,7 @@ export default function ViewReelPage({ params }: any) {
             {reel.status === 'draft' && (
               <button className={styles.publishBtn} onClick={handlePublish}>Publish Reel</button>
             )}
-            <button className={styles.editBtn} onClick={() => router.push(`/reels/edit/${params.id}`)}>Edit Reel</button>
+            <button className={styles.editBtn} onClick={() => reelId && router.push(`/reels/edit/${reelId}`)}>Edit Reel</button>
             <button className={styles.backBtn} onClick={() => router.push('/reels')}>Back to All Reels</button>
           </div>
         </div>
