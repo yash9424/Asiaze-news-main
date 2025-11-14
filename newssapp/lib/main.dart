@@ -1035,42 +1035,21 @@ class _SearchScreenState extends State<SearchScreen> {
                   ? const Center(child: CircularProgressIndicator())
                   : _results.isNotEmpty
                       ? ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           itemCount: _results.length,
                           itemBuilder: (context, i) {
                             final p = _results[i];
-                            final image = p['image'] ?? 'asset:refranceimages/Group (16).png';
                             final title = lang.getNewsContent(p, 'title');
                             final summary = lang.getNewsContent(p, 'summary');
                             final content = lang.getNewsContent(p, 'content');
+                            final explanation = lang.getNewsContent(p, 'explanation');
                             return Padding(
-                              padding: const EdgeInsets.only(bottom: 16.0),
-                              child: Card(
-                                elevation: 2,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                clipBehavior: Clip.antiAlias,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    image.startsWith('asset:')
-                                        ? Image.asset(image.replaceFirst('asset:', ''), height: 180, width: double.infinity, fit: BoxFit.cover)
-                                        : Image.network(image, height: 180, width: double.infinity, fit: BoxFit.cover),
-                                    Container(height: 2, width: 50, color: red, margin: const EdgeInsets.only(left: 16, top: 8)),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(title.isNotEmpty ? title : 'No Title', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                                          const SizedBox(height: 6),
-                                          Text(summary.isNotEmpty ? summary : content, style: TextStyle(color: Colors.grey.shade700), maxLines: 2, overflow: TextOverflow.ellipsis),
-                                          const SizedBox(height: 8),
-                                          Text('ASIAZE • Recently', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                              padding: const EdgeInsets.all(16.0),
+                              child: NewsCard(
+                                imageUrl: p['image'] ?? 'asset:refranceimages/Group (16).png',
+                                title: title.isNotEmpty ? title : 'No Title',
+                                subtitle: summary.isNotEmpty ? summary : content,
+                                meta: 'ASIAZE • ${formatPublishedDate(p['publishedAt'])}',
+                                explanation: explanation,
                               ),
                             );
                           },
@@ -3272,8 +3251,8 @@ class NewsCard extends StatelessWidget {
                             ),
                           );
                         },
-                        icon: const Icon(Icons.lightbulb_outline, size: 16),
-                        label: const Text('Explain', style: TextStyle(fontSize: 12)),
+                        icon: const Icon(Icons.article_outlined, size: 16),
+                        label: const Text('Read More', style: TextStyle(fontSize: 12)),
                         style: TextButton.styleFrom(
                           foregroundColor: red,
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
