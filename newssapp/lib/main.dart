@@ -1258,6 +1258,7 @@ class _WebVideoController {
 }
 
 class _VideoModel {
+  final String id;
   final String url;
   final String image;
   final String title;
@@ -1265,7 +1266,9 @@ class _VideoModel {
   final String category;
   final String source;
   final String timeAgo;
-  const _VideoModel({required this.url, required this.image, required this.title, this.description = '', this.category = 'News', required this.source, required this.timeAgo});
+  final int likes;
+  final int views;
+  const _VideoModel({required this.id, required this.url, required this.image, required this.title, this.description = '', this.category = 'News', required this.source, required this.timeAgo, this.likes = 0, this.views = 0});
 }
 
 class _VideosScreenState extends State<VideosScreen> {
@@ -1320,17 +1323,29 @@ class _VideosScreenState extends State<VideosScreen> {
       } else {
         if (mounted) {
           setState(() {
-            _items = reels.map((r) {
-            String videoUrl = r['videoUrl'] ?? '';
-            String thumbnail = r['thumbnail'] ?? '';
-            if (videoUrl.startsWith('/uploads/')) {
-              videoUrl = '${ApiService.baseServerUrl}$videoUrl';
-            }
-            if (thumbnail.startsWith('/uploads/')) {
-              thumbnail = '${ApiService.baseServerUrl}$thumbnail';
-            }
-            print('📹 Video: $videoUrl, Thumbnail: $thumbnail');
+            _items = reels.where((r) {
+              final videoUrl = r['videoUrl'] ?? '';
+              return videoUrl.isNotEmpty;
+            }).map((r) {
+              String videoUrl = r['videoUrl'] ?? '';
+              String thumbnail = r['thumbnail'] ?? '';
+              
+              // Convert relative paths to full URLs
+              if (videoUrl.startsWith('/uploads/')) {
+                videoUrl = '${ApiService.baseServerUrl}/api$videoUrl';
+              } else if (!videoUrl.startsWith('http://') && !videoUrl.startsWith('https://') && !videoUrl.startsWith('asset:')) {
+                videoUrl = '${ApiService.baseServerUrl}/api/uploads/$videoUrl';
+              }
+              
+              if (thumbnail.startsWith('/uploads/')) {
+                thumbnail = '${ApiService.baseServerUrl}$thumbnail';
+              }
+              
+              print('📹 Video URL: $videoUrl');
+              print('🖼️ Thumbnail: $thumbnail');
+              
               return _VideoModel(
+                id: r['_id']?.toString() ?? '',
                 url: videoUrl,
                 image: thumbnail,
                 title: r['title'] ?? 'News Reel',
@@ -1338,6 +1353,8 @@ class _VideosScreenState extends State<VideosScreen> {
                 category: r['category']?['name'] ?? 'News',
                 source: 'ASIAZE',
                 timeAgo: formatPublishedDate(r['publishedAt']),
+                likes: r['likes'] ?? 0,
+                views: r['views'] ?? 0,
               );
             }).toList();
             _loading = false;
@@ -1346,25 +1363,28 @@ class _VideosScreenState extends State<VideosScreen> {
       }
 
       for (final v in _items) {
-        final c = v.url.startsWith('refranceimages/') || v.url.startsWith('http')
-            ? (v.url.startsWith('http') 
-                ? VideoPlayerController.networkUrl(Uri.parse(v.url))
-                : VideoPlayerController.asset(v.url))
-            : VideoPlayerController.asset(v.url);
+        VideoPlayerController c;
+        if (v.url.startsWith('http://') || v.url.startsWith('https://')) {
+          c = VideoPlayerController.networkUrl(Uri.parse(v.url));
+        } else {
+          c = VideoPlayerController.asset(v.url);
+        }
         c.setLooping(true);
         c.setVolume(_muted ? 0 : 1);
         _controllers.add(c);
       }
       
-      Future.wait(_controllers.map((c) => c.initialize())).then((_) {
-        if (!mounted) return;
-        setState(() {});
-        if (_controllers.isNotEmpty) {
-          final first = _controllers.first;
-          first.setVolume(_muted ? 0 : 1);
-          first.play();
-        }
-      });
+      for (var i = 0; i < _controllers.length; i++) {
+        _controllers[i].initialize().then((_) {
+          if (mounted) setState(() {});
+          if (i == 0) {
+            _controllers[0].setVolume(_muted ? 0 : 1);
+            _controllers[0].play();
+          }
+        }).catchError((error) {
+          print('Error initializing video $i: $error');
+        });
+      }
     } catch (e) {
       print('Error fetching reels: $e');
       if (mounted) {
@@ -1478,9 +1498,17 @@ class _VideoPage extends StatefulWidget {
 
 class _VideoPageState extends State<_VideoPage> {
   bool _liked = false;
-  int _likeCount = 12000;
+  late int _likeCount;
   bool _saved = false;
   bool _showDetails = false;
+  String? _reelId;
+
+  @override
+  void initState() {
+    super.initState();
+    _reelId = widget.item.id;
+    _likeCount = widget.item.likes;
+  }
 
   String _fmt(Duration d) {
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
@@ -1586,14 +1614,16 @@ class _VideoPageState extends State<_VideoPage> {
             children: [
               _CircleAction(
                 icon: _liked ? Icons.favorite : Icons.favorite_border,
-                label: '${_likeCount ~/ 1000}k',
+                label: _likeCount >= 1000 ? '${(_likeCount / 1000).toStringAsFixed(1)}k' : '$_likeCount',
                 selected: _liked,
                 labelBelow: true,
-                onTap: () {
+                onTap: () async {
                   setState(() {
                     _liked = !_liked;
                     _likeCount += _liked ? 1 : -1;
                   });
+                  // Note: Add API call here when reelId is available
+                  // await ApiService.likeReel(reelId, _liked);
                 },
               ),
               const SizedBox(height: 16),

@@ -17,7 +17,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return NextResponse.json({ reel });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch reel' }, { status: 500 });
+    console.error('GET /api/reels/[id] error:', error);
+    return NextResponse.json({ error: 'Failed to fetch reel', details: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -39,7 +40,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return NextResponse.json({ reel });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to update reel' }, { status: 500 });
+    console.error('PUT /api/reels/[id] error:', error);
+    return NextResponse.json({ error: 'Failed to update reel', details: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -55,6 +57,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     return NextResponse.json({ message: 'Reel deleted successfully' });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to delete reel' }, { status: 500 });
+    console.error('DELETE /api/reels/[id] error:', error);
+    return NextResponse.json({ error: 'Failed to delete reel', details: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

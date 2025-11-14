@@ -1,19 +1,15 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import styles from './page.module.css'
 
-export default function ViewReelPage({ params }: any) {
+export default function ViewReelPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: reelId } = use(params)
   const router = useRouter()
-  const [reelId, setReelId] = React.useState<string | null>(null)
   const [reel, setReel] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-
-  React.useEffect(() => {
-    params.then((p: any) => setReelId(p.id))
-  }, [params])
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [isMuted, setIsMuted] = useState(true)

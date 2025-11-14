@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, use } from 'react'
 import Sidebar from '@/components/Sidebar'
 import { useRouter } from 'next/navigation'
 import styles from './page.module.css'
 
-export default function EditReelPage({ params }: any) {
+export default function EditReelPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [videoFile, setVideoFile] = useState<File | null>(null)
@@ -29,11 +30,11 @@ export default function EditReelPage({ params }: any) {
 
   useEffect(() => {
     fetchReel()
-  }, [])
+  }, [id])
 
   const fetchReel = async () => {
     try {
-      const res = await fetch(`/api/reels/${params.id}`)
+      const res = await fetch(`/api/reels/${id}`)
       const data = await res.json()
       const reel = data.reel
       setFormData({
@@ -155,7 +156,7 @@ export default function EditReelPage({ params }: any) {
         enableComments: formData.enableComments
       }
       
-      const res = await fetch(`/api/reels/${params.id}`, {
+      const res = await fetch(`/api/reels/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData)
