@@ -3756,13 +3756,18 @@ class _RewardScreenState extends State<RewardScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  ..._rewards.map((r) => _RewardCard(
-                        icon: '🎁',
-                        title: r['name'] ?? '',
-                        points: '${r['points']} pts',
-                        red: red,
-                        isAvailable: _points >= (r['points'] ?? 0),
-                      )),
+                  ..._rewards.map((r) {
+                    final imageUrl = r['imageUrl'] ?? '';
+                    final fullImageUrl = imageUrl.startsWith('http') 
+                        ? imageUrl 
+                        : '${ApiService.baseServerUrl}$imageUrl';
+                    return _RewardCard(
+                      imageUrl: fullImageUrl,
+                      title: r['name'] ?? '',
+                      points: 'Required ${r['points']} pts',
+                      red: red,
+                    );
+                  }),
                   const SizedBox(height: 16),
                   Padding(
                     padding: const EdgeInsets.all(16),
@@ -3780,18 +3785,16 @@ class _RewardScreenState extends State<RewardScreen> {
 }
 
 class _RewardCard extends StatelessWidget {
-  final String icon;
+  final String imageUrl;
   final String title;
   final String points;
   final Color red;
-  final bool isAvailable;
 
   const _RewardCard({
-    required this.icon,
+    required this.imageUrl,
     required this.title,
     required this.points,
     required this.red,
-    this.isAvailable = true,
   });
 
   @override
@@ -3819,9 +3822,24 @@ class _RewardCard extends StatelessWidget {
               color: Colors.grey.shade200,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Center(
-              child: Text(icon, style: const TextStyle(fontSize: 24)),
-            ),
+            child: imageUrl.isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      imageUrl,
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stack) {
+                        return const Center(
+                          child: Icon(Icons.card_giftcard, size: 24, color: Colors.grey),
+                        );
+                      },
+                    ),
+                  )
+                : const Center(
+                    child: Icon(Icons.card_giftcard, size: 24, color: Colors.grey),
+                  ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -3846,24 +3864,6 @@ class _RewardCard extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isAvailable ? red : red.withOpacity(0.5),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-            onPressed: isAvailable
-                ? () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Redeem feature coming soon!')),
-                    );
-                  }
-                : null,
-            child: Text(Provider.of<LanguageProvider>(context).translate('redeem'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
