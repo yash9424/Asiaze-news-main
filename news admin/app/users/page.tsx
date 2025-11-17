@@ -12,6 +12,7 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [roleFilter, setRoleFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [stateFilter, setStateFilter] = useState('')
   const [viewUser, setViewUser] = useState<any>(null)
 
   useEffect(() => {
@@ -41,8 +42,12 @@ export default function UsersPage() {
       }
     }
 
+    if (stateFilter) {
+      filtered = filtered.filter(u => u.state === stateFilter)
+    }
+
     setFilteredUsers(filtered)
-  }, [users, searchTerm, roleFilter, statusFilter])
+  }, [users, searchTerm, roleFilter, statusFilter, stateFilter])
 
   const fetchUsers = async () => {
     try {
@@ -117,9 +122,9 @@ export default function UsersPage() {
   }
 
   const handleExport = () => {
-    const csv = ['Name,Email,Phone,Role,Status,Date Registered']
+    const csv = ['Name,Email,Phone,State,Role,Status,Wallet Balance,Date Registered']
     filteredUsers.forEach(u => {
-      csv.push(`${u.name},${u.email},${u.phone || ''},${u.role},${u.isActive ? 'Active' : 'Inactive'},${new Date(u.createdAt).toLocaleDateString()}`)
+      csv.push(`${u.name},${u.email},${u.phone || ''},${u.state || ''},${u.role},${u.isActive ? 'Active' : 'Inactive'},${u.walletBalance || 0},${new Date(u.createdAt).toLocaleDateString()}`)
     })
     const blob = new Blob([csv.join('\n')], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
@@ -199,6 +204,38 @@ export default function UsersPage() {
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
+          <select className={styles.select} value={stateFilter} onChange={(e) => setStateFilter(e.target.value)}>
+            <option value="">All States</option>
+            <option value="Andhra Pradesh">Andhra Pradesh</option>
+            <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+            <option value="Assam">Assam</option>
+            <option value="Bihar">Bihar</option>
+            <option value="Chhattisgarh">Chhattisgarh</option>
+            <option value="Goa">Goa</option>
+            <option value="Gujarat">Gujarat</option>
+            <option value="Haryana">Haryana</option>
+            <option value="Himachal Pradesh">Himachal Pradesh</option>
+            <option value="Jharkhand">Jharkhand</option>
+            <option value="Karnataka">Karnataka</option>
+            <option value="Kerala">Kerala</option>
+            <option value="Madhya Pradesh">Madhya Pradesh</option>
+            <option value="Maharashtra">Maharashtra</option>
+            <option value="Manipur">Manipur</option>
+            <option value="Meghalaya">Meghalaya</option>
+            <option value="Mizoram">Mizoram</option>
+            <option value="Nagaland">Nagaland</option>
+            <option value="Odisha">Odisha</option>
+            <option value="Punjab">Punjab</option>
+            <option value="Rajasthan">Rajasthan</option>
+            <option value="Sikkim">Sikkim</option>
+            <option value="Tamil Nadu">Tamil Nadu</option>
+            <option value="Telangana">Telangana</option>
+            <option value="Tripura">Tripura</option>
+            <option value="Uttar Pradesh">Uttar Pradesh</option>
+            <option value="Uttarakhand">Uttarakhand</option>
+            <option value="West Bengal">West Bengal</option>
+            <option value="Delhi">Delhi</option>
+          </select>
         </div>
 
         <div className={styles.bulkActions}>
@@ -215,6 +252,7 @@ export default function UsersPage() {
                 <th><input type="checkbox" checked={selected.length === filteredUsers.length && filteredUsers.length > 0} onChange={toggleSelectAll} /></th>
                 <th>Name</th>
                 <th>Email/Phone</th>
+                <th>State</th>
                 <th>Role</th>
                 <th>Status</th>
                 <th>Date Registered</th>
@@ -224,7 +262,7 @@ export default function UsersPage() {
             <tbody>
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '20px' }}>No users found</td>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '20px' }}>No users found</td>
                 </tr>
               ) : (
                 filteredUsers.map(user => (
@@ -232,6 +270,7 @@ export default function UsersPage() {
                     <td><input type="checkbox" checked={selected.includes(user._id)} onChange={() => toggleSelect(user._id)} /></td>
                     <td>{user.name}</td>
                     <td>{user.email}</td>
+                    <td>{user.state || 'N/A'}</td>
                     <td>
                       <span className={user.role === 'admin' ? styles.roleAdmin : user.role === 'user' ? styles.roleUser : styles.roleModerator}>
                         {user.role}
@@ -280,7 +319,19 @@ export default function UsersPage() {
                   <strong>Status:</strong> <span className={viewUser.isActive ? styles.statusActive : styles.statusInactive}>{viewUser.isActive ? 'Active' : 'Inactive'}</span>
                 </div>
                 <div className={styles.detailRow}>
+                  <strong>State:</strong> <span>{viewUser.state || 'Not specified'}</span>
+                </div>
+                <div className={styles.detailRow}>
+                  <strong>Language:</strong> <span>{viewUser.preferences?.language || 'EN'}</span>
+                </div>
+                <div className={styles.detailRow}>
+                  <strong>Wallet Balance:</strong> <span>₹{viewUser.walletBalance || 0}</span>
+                </div>
+                <div className={styles.detailRow}>
                   <strong>Date Registered:</strong> <span>{new Date(viewUser.createdAt).toLocaleString()}</span>
+                </div>
+                <div className={styles.detailRow}>
+                  <strong>Last Updated:</strong> <span>{new Date(viewUser.updatedAt).toLocaleString()}</span>
                 </div>
               </div>
               <div className={styles.modalFooter}>
