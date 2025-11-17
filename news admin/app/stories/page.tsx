@@ -76,28 +76,44 @@ export default function StoriesListPage() {
             <div style={styles.grid}>
               {stories.map((story) => (
                 <div key={story._id} style={styles.card}>
-                  {story.videoUrl ? (
-                    <video src={story.videoUrl} style={styles.image} controls />
-                  ) : story.image ? (
-                    <img src={story.image} alt={story.heading} style={styles.image} />
-                  ) : (
-                    <div style={{ ...styles.image, backgroundColor: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>No Media</div>
-                  )}
+                  <div style={styles.imageContainer}>
+                    {story.videoUrl ? (
+                      <video src={story.videoUrl} style={styles.image} controls />
+                    ) : story.image ? (
+                      <img src={story.image} alt={story.heading} style={styles.image} />
+                    ) : (
+                      <div style={styles.noMedia}>No Media</div>
+                    )}
+                    <button onClick={() => setViewStory(story)} style={styles.viewBtn}>
+                      👁️
+                    </button>
+                  </div>
                   <div style={styles.cardContent}>
                     <h3 style={styles.cardTitle}>{story.heading}</h3>
                     <p style={styles.description}>{story.description}</p>
                     <div style={styles.meta}>
-                      <span>{story.videoUrl ? 'Video' : 'Image'}</span>
-                      <span style={{ color: story.active ? '#4caf50' : '#f44336' }}>
+                      <span style={styles.mediaType}>{story.videoUrl ? 'Video' : 'Image'}</span>
+                      <span style={{
+                        ...styles.statusBadge,
+                        backgroundColor: story.active ? '#4caf50' : '#f44336'
+                      }}>
                         {story.active ? 'Active' : 'Inactive'}
                       </span>
                     </div>
                     <div style={styles.actions}>
-                      <button onClick={() => setViewStory(story)} style={{ ...styles.actionBtn, backgroundColor: '#2196f3' }}>View</button>
-                      <button onClick={() => toggleActive(story._id, story.active)} style={{ ...styles.actionBtn, backgroundColor: story.active ? '#ff9800' : '#4caf50' }}>
+                      <Link href={`/stories/edit/${story._id}`} style={styles.editBtn}>Edit</Link>
+                      <button 
+                        onClick={() => toggleActive(story._id, story.active)} 
+                        style={{
+                          ...styles.toggleBtn,
+                          backgroundColor: story.active ? '#9e9e9e' : '#4caf50'
+                        }}
+                      >
                         {story.active ? 'Deactivate' : 'Activate'}
                       </button>
-                      <button onClick={() => handleDelete(story._id)} style={{ ...styles.actionBtn, backgroundColor: '#f44336' }}>Delete</button>
+                      <button onClick={() => handleDelete(story._id)} style={styles.deleteBtn}>
+                        Delete
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -116,7 +132,7 @@ export default function StoriesListPage() {
                     <source src={viewStory.videoUrl} type="video/mp4" />
                   </video>
                 ) : viewStory.image ? (
-                  <img src={viewStory.image} alt={viewStory.heading} style={styles.previewMedia} onError={(e) => { e.currentTarget.style.display = 'none' }} />
+                  <img src={viewStory.image} alt={viewStory.heading} style={styles.previewMedia} />
                 ) : (
                   <div style={styles.placeholderMedia}>No Media</div>
                 )}
@@ -176,21 +192,81 @@ const styles = {
   content: { padding: '35px' },
   loading: { textAlign: 'center' as const, padding: '50px', fontSize: '16px' },
   empty: { textAlign: 'center' as const, padding: '50px', fontSize: '16px', color: '#666' },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '25px' },
-  card: { backgroundColor: 'white', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 6px rgba(0,0,0,0.08)' },
-  image: { width: '100%', height: '180px', objectFit: 'cover' as const },
-  cardContent: { padding: '20px' },
-  cardTitle: { fontSize: '16px', fontWeight: '600' as const, marginBottom: '8px' },
-  description: { fontSize: '13px', color: '#666', marginBottom: '10px', lineHeight: '1.4' },
-  meta: { display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#666', marginBottom: '15px' },
-  actions: { display: 'flex', gap: '6px' },
-  actionBtn: {
-    flex: 1,
-    padding: '6px 8px',
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '25px' },
+  card: { backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' },
+  imageContainer: { position: 'relative' as const },
+  image: { width: '100%', height: '200px', objectFit: 'cover' as const },
+  noMedia: { 
+    width: '100%', 
+    height: '200px', 
+    backgroundColor: '#f0f0f0', 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    color: '#666'
+  },
+  viewBtn: {
+    position: 'absolute' as const,
+    top: '12px',
+    right: '12px',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '50%',
+    width: '40px',
+    height: '40px',
+    fontSize: '18px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardContent: { padding: '20px' },
+  cardTitle: { fontSize: '18px', fontWeight: '700' as const, marginBottom: '8px', color: '#333' },
+  description: { 
+    fontSize: '14px', 
+    color: '#666', 
+    marginBottom: '15px', 
+    lineHeight: '1.5',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap' as const
+  },
+  meta: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
+  mediaType: { fontSize: '12px', color: '#666', backgroundColor: '#f5f5f5', padding: '4px 8px', borderRadius: '12px' },
+  statusBadge: { fontSize: '11px', color: 'white', padding: '4px 10px', borderRadius: '12px', fontWeight: '600' as const },
+  actions: { display: 'flex', gap: '8px' },
+  editBtn: {
+    flex: 1,
+    padding: '10px 16px',
+    backgroundColor: '#ff9800',
     color: 'white',
-    fontSize: '11px',
+    textDecoration: 'none',
+    textAlign: 'center' as const,
+    borderRadius: '6px',
+    fontSize: '13px',
+    fontWeight: '600' as const,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toggleBtn: {
+    flex: 1,
+    padding: '10px 16px',
+    border: 'none',
+    borderRadius: '6px',
+    color: 'white',
+    fontSize: '13px',
+    fontWeight: '600' as const,
+    cursor: 'pointer',
+  },
+  deleteBtn: {
+    flex: 1,
+    padding: '10px 16px',
+    backgroundColor: '#f44336',
+    border: 'none',
+    borderRadius: '6px',
+    color: 'white',
+    fontSize: '13px',
     fontWeight: '600' as const,
     cursor: 'pointer',
   },
@@ -271,7 +347,6 @@ const styles = {
     fontWeight: '600' as const,
     cursor: 'pointer',
     pointerEvents: 'auto' as const,
-    backdropFilter: 'blur(10px)',
   },
   actionButtons: {
     position: 'absolute' as const,
@@ -295,13 +370,11 @@ const styles = {
     left: 0,
     right: 0,
     backgroundColor: 'rgba(255,255,255,0.15)',
-    backdropFilter: 'blur(20px)',
     borderTopLeftRadius: '20px',
     borderTopRightRadius: '20px',
     padding: '25px 20px',
     maxHeight: '70%',
     overflowY: 'auto' as const,
-    animation: 'slideUp 0.3s ease-out',
   },
   closeDetailsBtn: {
     position: 'absolute' as const,
