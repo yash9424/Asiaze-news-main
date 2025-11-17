@@ -1,114 +1,307 @@
 'use client'
 
 import Sidebar from '@/components/Sidebar'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('general')
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [adminUsers, setAdminUsers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    mobile: '',
+    roleName: '',
+    modules: {
+      news: false,
+      stories: false,
+      reels: false,
+      categories: false,
+      users: false,
+      notifications: false,
+      rewards: false,
+      analytics: false
+    }
+  })
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleModuleChange = (module: string, checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      modules: { ...prev.modules, [module]: checked }
+    }))
+  }
+
+  useEffect(() => {
+    fetchAdminUsers()
+  }, [])
+
+  const fetchAdminUsers = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/admin-users')
+      if (response.ok) {
+        const users = await response.json()
+        setAdminUsers(users)
+      }
+    } catch (error) {
+      console.error('Error fetching admin users:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async () => {
+    try {
+      const method = editingId ? 'PUT' : 'POST'
+      const url = editingId ? `/api/admin-users/${editingId}` : '/api/admin-users'
+      
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+
+      if (response.ok) {
+        await fetchAdminUsers()
+        setShowAddForm(false)
+        setEditingId(null)
+        resetForm()
+      }
+    } catch (error) {
+      console.error('Error saving admin user:', error)
+    }
+  }
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      email: '',
+      password: '',
+      mobile: '',
+      roleName: '',
+      modules: {
+        news: false,
+        stories: false,
+        reels: false,
+        categories: false,
+        users: false,
+        notifications: false,
+        rewards: false,
+        analytics: false
+      }
+    })
+  }
+
+  const handleEdit = (user: any) => {
+    setFormData({
+      name: user.name,
+      email: user.email,
+      password: '',
+      mobile: user.mobile,
+      roleName: user.roleName,
+      modules: user.modules
+    })
+    setEditingId(user._id)
+    setShowAddForm(true)
+  }
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Are you sure you want to delete this admin user?')) {
+      try {
+        const response = await fetch(`/api/admin-users/${id}`, {
+          method: 'DELETE'
+        })
+        
+        if (response.ok) {
+          await fetchAdminUsers()
+        }
+      } catch (error) {
+        console.error('Error deleting admin user:', error)
+      }
+    }
+  }
+
+  const getModulesList = (modules: any) => {
+    return Object.entries(modules)
+      .filter(([_, enabled]) => enabled)
+      .map(([module, _]) => module.charAt(0).toUpperCase() + module.slice(1))
+      .join(', ') || 'None'
+  }
 
   return (
     <div style={styles.container}>
       <Sidebar />
       <div style={styles.main}>
-        <h1 style={styles.title}>Settings</h1>
-
-        <div style={styles.tabs}>
-          <button style={activeTab === 'general' ? styles.tabActive : styles.tab} onClick={() => setActiveTab('general')}>General Settings</button>
-          <button style={activeTab === 'language' ? styles.tabActive : styles.tab} onClick={() => setActiveTab('language')}>Language Settings</button>
-          <button style={activeTab === 'policies' ? styles.tabActive : styles.tab} onClick={() => setActiveTab('policies')}>Policies & Static Pages</button>
-          <button style={activeTab === 'admin' ? styles.tabActive : styles.tab} onClick={() => setActiveTab('admin')}>Admin Users Management</button>
-          <button style={activeTab === 'notifications' ? styles.tabActive : styles.tab} onClick={() => setActiveTab('notifications')}>Notifications Defaults</button>
-        </div>
+        <h1 style={styles.title}>Admin User Management</h1>
 
         <div style={styles.content}>
-          <div style={styles.field}>
-            <label style={styles.label}>Site/App Name</label>
-            <input type="text" style={styles.input} />
+          <div style={styles.header}>
+            <h2 style={styles.subtitle}>Add New Admin User</h2>
+            <button 
+              style={styles.addBtn} 
+              onClick={() => setShowAddForm(!showAddForm)}
+            >
+              {showAddForm ? 'Cancel' : 'Add New Admin'}
+            </button>
           </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Logo Upload</label>
-            <input type="text" style={styles.input} />
-          </div>
+          {showAddForm && (
+            <div style={styles.form}>
+              <div style={styles.formGrid}>
+                <div style={styles.field}>
+                  <label style={styles.label}>Name *</label>
+                  <input 
+                    type="text" 
+                    style={styles.input}
+                    value={formData.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    placeholder="Enter admin name"
+                  />
+                </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Contact Email</label>
-            <input type="text" style={styles.input} />
-          </div>
+                <div style={styles.field}>
+                  <label style={styles.label}>Email *</label>
+                  <input 
+                    type="email" 
+                    style={styles.input}
+                    value={formData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    placeholder="Enter email address"
+                  />
+                </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Footer Text</label>
-            <textarea style={styles.textarea}></textarea>
-          </div>
+                <div style={styles.field}>
+                  <label style={styles.label}>Password {editingId ? '(Leave blank to keep current)' : '*'}</label>
+                  <input 
+                    type="password" 
+                    style={styles.input}
+                    value={formData.password}
+                    onChange={(e) => handleInputChange('password', e.target.value)}
+                    placeholder={editingId ? "Leave blank to keep current password" : "Enter password"}
+                  />
+                </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Default Language</label>
-            <select style={styles.select}>
-              <option>EN</option>
-            </select>
-          </div>
+                <div style={styles.field}>
+                  <label style={styles.label}>Mobile Number *</label>
+                  <input 
+                    type="tel" 
+                    style={styles.input}
+                    value={formData.mobile}
+                    onChange={(e) => handleInputChange('mobile', e.target.value)}
+                    placeholder="Enter mobile number"
+                  />
+                </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Enable/Disable Language</label>
-            <label style={styles.toggle}>
-              <input type="checkbox" style={styles.checkbox} />
-              <span style={styles.slider}></span>
-            </label>
-          </div>
-
-          <div style={styles.field}>
-            <label style={styles.label}>Privacy Policy</label>
-            <textarea style={styles.textarea}></textarea>
-          </div>
-
-          <div style={styles.field}>
-            <label style={styles.label}>Terms & Conditions</label>
-            <textarea style={styles.textarea}></textarea>
-          </div>
-
-          <div style={styles.field}>
-            <label style={styles.label}>About Us</label>
-            <textarea style={styles.textarea}></textarea>
-          </div>
-
-          <div style={styles.field}>
-            <label style={styles.label}>Admin Users Management</label>
-            <div style={styles.adminTable}>
-              <div style={styles.adminHeader}>
-                <span style={styles.adminCol}>Name</span>
-                <span style={styles.adminCol}>Email</span>
-                <span style={styles.adminCol}>Role</span>
-                <span style={styles.adminCol}>Status</span>
-                <button style={styles.addBtn}>Add New Admin</button>
-              </div>
-              <div style={styles.adminRow}>
-                <span style={styles.adminCol}>John Doe</span>
-                <span style={styles.adminCol}>john@example.com</span>
-                <span style={styles.adminCol}>Super Admin</span>
-                <span style={styles.adminCol}>Active</span>
-                <div style={styles.adminActions}>
-                  <button style={styles.editBtn}>Edit</button>
-                  <button style={styles.deleteBtn}>Delete</button>
+                <div style={styles.field}>
+                  <label style={styles.label}>Role Name *</label>
+                  <input 
+                    type="text" 
+                    style={styles.input}
+                    value={formData.roleName}
+                    onChange={(e) => handleInputChange('roleName', e.target.value)}
+                    placeholder="e.g., Content Manager, News Editor"
+                  />
                 </div>
               </div>
+
+              <div style={styles.modulesSection}>
+                <label style={styles.label}>Module Access Permissions *</label>
+                <div style={styles.moduleGrid}>
+                  {Object.entries({
+                    news: 'News Management',
+                    stories: 'Stories Management', 
+                    reels: 'Reels Management',
+                    categories: 'Categories Management',
+                    users: 'Users Management',
+                    notifications: 'Notifications',
+                    rewards: 'Rewards Management',
+                    analytics: 'Analytics & Reports'
+                  }).map(([key, label]) => (
+                    <label key={key} style={styles.checkboxLabel}>
+                      <input
+                        type="checkbox"
+                        checked={formData.modules[key as keyof typeof formData.modules]}
+                        onChange={(e) => handleModuleChange(key, e.target.checked)}
+                        style={styles.checkbox}
+                      />
+                      <span style={styles.checkboxText}>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div style={styles.formButtons}>
+                <button style={styles.saveBtn} onClick={handleSubmit}>
+                  {editingId ? 'Update Admin User' : 'Create Admin User'}
+                </button>
+                <button 
+                  style={styles.cancelBtn} 
+                  onClick={() => {
+                    setShowAddForm(false)
+                    setEditingId(null)
+                    resetForm()
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
-          <div style={styles.field}>
-            <label style={styles.label}>Default Notification Tone</label>
-            <input type="text" style={styles.input} />
-          </div>
-
-          <div style={styles.field}>
-            <label style={styles.label}>Default Delivery Type</label>
-            <select style={styles.select}>
-              <option>Immediate</option>
-            </select>
-          </div>
-
-          <div style={styles.buttons}>
-            <button style={styles.saveBtn}>Save Changes</button>
-            <button style={styles.cancelBtn}>Cancel</button>
+          <div style={styles.usersList}>
+            <h3 style={styles.listTitle}>Admin Users List</h3>
+            {loading ? (
+              <div style={styles.loading}>Loading admin users...</div>
+            ) : (
+            <div style={styles.table}>
+              <div style={styles.tableHeader}>
+                <span style={styles.tableCol}>Name</span>
+                <span style={styles.tableCol}>Email</span>
+                <span style={styles.tableCol}>Role</span>
+                <span style={styles.tableCol}>Modules</span>
+                <span style={styles.tableCol}>Status</span>
+                <span style={styles.tableCol}>Actions</span>
+              </div>
+              {adminUsers.map((user) => (
+                <div key={user._id} style={styles.tableRow}>
+                  <span style={styles.tableCol}>{user.name}</span>
+                  <span style={styles.tableCol}>{user.email}</span>
+                  <span style={styles.tableCol}>{user.roleName}</span>
+                  <span style={styles.tableCol} title={getModulesList(user.modules)}>
+                    {getModulesList(user.modules).length > 20 
+                      ? getModulesList(user.modules).substring(0, 20) + '...' 
+                      : getModulesList(user.modules)
+                    }
+                  </span>
+                  <span style={styles.tableCol}>
+                    <span style={styles.statusBadge}>{user.status}</span>
+                  </span>
+                  <span style={styles.tableCol}>
+                    <div style={styles.actionButtons}>
+                      <button 
+                        style={styles.editBtn} 
+                        onClick={() => handleEdit(user)}
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        style={styles.deleteBtn} 
+                        onClick={() => handleDelete(user._id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </span>
+                </div>
+              ))}
+            </div>
+            )}
           </div>
         </div>
       </div>
@@ -129,174 +322,192 @@ const styles = {
     padding: '30px',
   },
   title: {
-    fontSize: '24px',
+    fontSize: '28px',
     fontWeight: '700' as const,
-    marginBottom: '25px',
-  },
-  tabs: {
-    display: 'flex',
-    gap: '10px',
     marginBottom: '30px',
-    backgroundColor: 'white',
-    padding: '10px',
-    borderRadius: '8px',
-  },
-  tab: {
-    padding: '10px 20px',
-    border: 'none',
-    backgroundColor: 'transparent',
-    fontSize: '14px',
-    cursor: 'pointer',
-    borderRadius: '5px',
-  },
-  tabActive: {
-    padding: '10px 20px',
-    border: 'none',
-    backgroundColor: '#e5e7eb',
-    fontSize: '14px',
-    fontWeight: '600' as const,
-    cursor: 'pointer',
-    borderRadius: '5px',
+    color: '#1f2937',
   },
   content: {
     backgroundColor: 'white',
     padding: '30px',
-    borderRadius: '8px',
+    borderRadius: '12px',
+    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
   },
-  field: {
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '30px',
+  },
+  subtitle: {
+    fontSize: '20px',
+    fontWeight: '600' as const,
+    color: '#374151',
+    margin: 0,
+  },
+  form: {
+    backgroundColor: '#f9fafb',
+    padding: '25px',
+    borderRadius: '8px',
+    border: '1px solid #e5e7eb',
+  },
+  formGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+    gap: '20px',
     marginBottom: '25px',
   },
+  field: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+  },
   label: {
-    display: 'block',
     fontSize: '14px',
     fontWeight: '600' as const,
-    marginBottom: '8px',
+    marginBottom: '6px',
+    color: '#374151',
   },
   input: {
-    width: '100%',
-    padding: '10px',
-    border: '1px solid #e5e7eb',
-    borderRadius: '5px',
+    padding: '12px',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
     fontSize: '14px',
+    backgroundColor: 'white',
   },
-  textarea: {
-    width: '100%',
-    padding: '10px',
+  modulesSection: {
+    marginBottom: '25px',
+  },
+  moduleGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '12px',
+    marginTop: '10px',
+  },
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    cursor: 'pointer',
+    padding: '8px',
+    backgroundColor: 'white',
+    borderRadius: '6px',
     border: '1px solid #e5e7eb',
-    borderRadius: '5px',
-    fontSize: '14px',
-    minHeight: '100px',
-    resize: 'vertical' as const,
-  },
-  select: {
-    width: '100%',
-    padding: '10px',
-    border: '1px solid #e5e7eb',
-    borderRadius: '5px',
-    fontSize: '14px',
-  },
-  toggle: {
-    position: 'relative' as const,
-    display: 'inline-block',
-    width: '50px',
-    height: '24px',
   },
   checkbox: {
-    opacity: 0,
-    width: 0,
-    height: 0,
+    marginRight: '8px',
+    width: '16px',
+    height: '16px',
   },
-  slider: {
-    position: 'absolute' as const,
-    cursor: 'pointer',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#e31e3a',
-    borderRadius: '24px',
-  },
-  adminTable: {
-    border: '1px solid #e5e7eb',
-    borderRadius: '5px',
-    overflow: 'hidden',
-  },
-  adminHeader: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1.5fr 1fr 1fr auto',
-    padding: '15px',
-    backgroundColor: '#f9fafb',
-    fontWeight: '600' as const,
+  checkboxText: {
     fontSize: '14px',
-    alignItems: 'center',
+    color: '#374151',
   },
-  adminRow: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1.5fr 1fr 1fr auto',
-    padding: '15px',
-    borderTop: '1px solid #e5e7eb',
-    fontSize: '14px',
-    alignItems: 'center',
-  },
-  adminCol: {
-    padding: '0 10px',
-  },
-  adminActions: {
+  formButtons: {
     display: 'flex',
-    gap: '10px',
+    gap: '15px',
+    justifyContent: 'flex-end',
   },
   addBtn: {
     backgroundColor: '#e31e3a',
     color: 'white',
-    padding: '8px 16px',
+    padding: '10px 20px',
     border: 'none',
-    borderRadius: '20px',
-    fontSize: '13px',
+    borderRadius: '6px',
+    fontSize: '14px',
     fontWeight: '600' as const,
     cursor: 'pointer',
   },
-  editBtn: {
-    backgroundColor: '#f3f4f6',
-    color: '#000',
-    padding: '6px 16px',
-    border: 'none',
-    borderRadius: '5px',
-    fontSize: '13px',
-    cursor: 'pointer',
-  },
-  deleteBtn: {
-    backgroundColor: '#f3f4f6',
-    color: '#000',
-    padding: '6px 16px',
-    border: 'none',
-    borderRadius: '5px',
-    fontSize: '13px',
-    cursor: 'pointer',
-  },
-  buttons: {
-    display: 'flex',
-    gap: '15px',
-    justifyContent: 'flex-end',
-    marginTop: '30px',
-  },
   saveBtn: {
-    backgroundColor: '#e31e3a',
+    backgroundColor: '#10b981',
     color: 'white',
-    padding: '12px 30px',
+    padding: '12px 24px',
     border: 'none',
-    borderRadius: '25px',
+    borderRadius: '6px',
     fontSize: '14px',
     fontWeight: '600' as const,
     cursor: 'pointer',
   },
   cancelBtn: {
-    backgroundColor: '#f3f4f6',
-    color: '#000',
-    padding: '12px 30px',
+    backgroundColor: '#6b7280',
+    color: 'white',
+    padding: '12px 24px',
     border: 'none',
-    borderRadius: '25px',
+    borderRadius: '6px',
     fontSize: '14px',
     fontWeight: '600' as const,
     cursor: 'pointer',
+  },
+  usersList: {
+    marginTop: '40px',
+  },
+  listTitle: {
+    fontSize: '18px',
+    fontWeight: '600' as const,
+    marginBottom: '20px',
+    color: '#374151',
+  },
+  table: {
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    backgroundColor: 'white',
+  },
+  tableHeader: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1.5fr 1fr 1.2fr 0.8fr 1fr',
+    padding: '15px',
+    backgroundColor: '#f9fafb',
+    fontWeight: '600' as const,
+    fontSize: '14px',
+    borderBottom: '1px solid #e5e7eb',
+  },
+  tableRow: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1.5fr 1fr 1.2fr 0.8fr 1fr',
+    padding: '15px',
+    borderBottom: '1px solid #f3f4f6',
+    fontSize: '14px',
+    alignItems: 'center',
+  },
+  tableCol: {
+    padding: '0 8px',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap' as const,
+  },
+  statusBadge: {
+    backgroundColor: '#10b981',
+    color: 'white',
+    padding: '4px 8px',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: '500' as const,
+  },
+  actionButtons: {
+    display: 'flex',
+    gap: '8px',
+  },
+  editBtn: {
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    padding: '6px 12px',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '12px',
+    cursor: 'pointer',
+  },
+  deleteBtn: {
+    backgroundColor: '#ef4444',
+    color: 'white',
+    padding: '6px 12px',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '12px',
+    cursor: 'pointer',
+  },
+  loading: {
+    textAlign: 'center' as const,
+    padding: '40px',
+    color: '#6b7280',
+    fontSize: '16px',
   },
 }

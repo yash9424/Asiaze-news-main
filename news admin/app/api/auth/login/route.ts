@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import dbConnect from '@/lib/mongodb';
-import User from '@/models/User';
+import AdminUser from '@/models/AdminUser';
 import { createCorsResponse, createCorsErrorResponse, handleOptionsRequest, corsHeaders } from '@/lib/cors';
 
 export async function POST(req: NextRequest) {
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
       return createCorsErrorResponse('Email and password required', 400);
     }
 
-    const user = await User.findOne({ email });
+    const user = await AdminUser.findOne({ email });
     if (!user) {
       return createCorsErrorResponse('Invalid credentials', 401);
     }
@@ -24,18 +24,18 @@ export async function POST(req: NextRequest) {
       return createCorsErrorResponse('Invalid credentials', 401);
     }
 
-    if (!user.isActive) {
+    if (user.status !== 'Active') {
       return createCorsErrorResponse('Account is inactive', 403);
     }
 
     const token = jwt.sign(
-      { userId: user._id, email: user.email, role: user.role },
+      { userId: user._id, email: user.email, role: user.roleName },
       process.env.JWT_SECRET!,
       { expiresIn: '7d' }
     );
 
     const response = NextResponse.json({
-      user: { id: user._id, name: user.name, email: user.email, role: user.role }
+      user: { id: user._id, name: user.name, email: user.email, role: user.roleName }
     }, {
       headers: corsHeaders()
     });
