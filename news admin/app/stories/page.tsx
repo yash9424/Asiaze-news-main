@@ -150,47 +150,7 @@ export default function StoriesListPage() {
           )}
         </div>
 
-        {viewStory && (
-          <div style={styles.modal} onClick={() => { setViewStory(null); setShowDetails(false); setLiked(false); }}>
-            <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => { setViewStory(null); setShowDetails(false); }} style={styles.closeBtn}>×</button>
-              <div style={styles.phoneFrame}>
-                {viewStory.videoUrl ? (
-                  <video key={viewStory._id} style={styles.previewMedia} controls autoPlay muted>
-                    <source src={viewStory.videoUrl} type="video/mp4" />
-                  </video>
-                ) : viewStory.image ? (
-                  <img src={viewStory.image} alt={viewStory.heading} style={styles.previewMedia} />
-                ) : (
-                  <div style={styles.placeholderMedia}>No Media</div>
-                )}
-                <div style={styles.storyOverlay}>
-                  <div style={styles.storyHeader}>
-                    <div style={styles.storyBrand}>asiaze</div>
-                  </div>
-                  {!showDetails && (
-                    <>
-                      <button onClick={() => setShowDetails(true)} style={styles.readDetailBtn}>
-                        Read More ↑
-                      </button>
-                      <div style={styles.actionButtons}>
-                        <button onClick={() => setLiked(!liked)} style={{ ...styles.actionBtn, color: liked ? '#ff0000' : 'white' }}>♥</button>
-                        <button style={styles.actionBtn}>➤</button>
-                      </div>
-                    </>
-                  )}
-                </div>
-                {showDetails && (
-                  <div style={styles.detailsPanel}>
-                    <button onClick={() => setShowDetails(false)} style={styles.closeDetailsBtn}>×</button>
-                    <h2 style={styles.detailHeading}>{viewStory.heading}</h2>
-                    <p style={styles.detailDescription}>{viewStory.description}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        {viewStory && <StoryViewer story={viewStory} onClose={() => { setViewStory(null); setShowDetails(false); setLiked(false); }} />}
       </div>
     </div>
   )

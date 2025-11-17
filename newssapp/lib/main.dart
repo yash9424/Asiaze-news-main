@@ -2006,18 +2006,25 @@ class _StoryGridScreenState extends State<StoryGridScreen> {
 
   Future<void> _fetchData() async {
     try {
+      print('🔍 Fetching stories...');
       final stories = await ApiService.getStories();
+      print('📚 Received ${stories.length} stories: $stories');
+      
       final categories = await ApiService.getCategories();
+      print('📂 Received ${categories.length} categories');
       
       // Group stories by category
       final Map<String, List<dynamic>> grouped = {};
       for (final story in stories) {
         final categoryId = story['category']?['_id']?.toString() ?? 'uncategorized';
+        print('📖 Story: ${story['heading']} -> Category: $categoryId');
         if (!grouped.containsKey(categoryId)) {
           grouped[categoryId] = [];
         }
         grouped[categoryId]!.add(story);
       }
+      
+      print('🗂️ Grouped stories: $grouped');
       
       setState(() {
         _storiesByCategory = grouped;
@@ -2025,7 +2032,7 @@ class _StoryGridScreenState extends State<StoryGridScreen> {
         _loading = false;
       });
     } catch (e) {
-      print('Error fetching stories: $e');
+      print('❌ Error fetching stories: $e');
       setState(() => _loading = false);
     }
   }
@@ -2062,21 +2069,30 @@ class _StoryGridScreenState extends State<StoryGridScreen> {
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: _categories.length,
+                  itemCount: _storiesByCategory.keys.length,
                   itemBuilder: (context, index) {
-                    final category = _categories[index];
-                    final categoryId = category['_id']?.toString() ?? '';
+                    final categoryId = _storiesByCategory.keys.elementAt(index);
                     final categoryStories = _storiesByCategory[categoryId] ?? [];
                     
                     if (categoryStories.isEmpty) return const SizedBox.shrink();
                     
+                    // Find category name or use default
+                    String categoryName = 'Stories';
+                    if (categoryId != 'uncategorized') {
+                      final category = _categories.firstWhere(
+                        (c) => c['_id']?.toString() == categoryId,
+                        orElse: () => {'name': 'Stories'},
+                      );
+                      categoryName = lang.getCategoryLabel(category);
+                    }
+                        
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           child: Text(
-                            lang.getCategoryLabel(category),
+                            categoryName,
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
@@ -2084,99 +2100,107 @@ class _StoryGridScreenState extends State<StoryGridScreen> {
                             ),
                           ),
                         ),
-                        GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            crossAxisSpacing: 8,
-                            mainAxisSpacing: 8,
-                            childAspectRatio: 0.7,
-                          ),
-                          itemCount: categoryStories.length,
-                          itemBuilder: (context, storyIndex) {
-                            final story = categoryStories[storyIndex];
-                            String imageUrl = story['image'] ?? '';
-                            
-                            if (imageUrl.startsWith('/uploads/')) {
-                              imageUrl = '${ApiService.baseServerUrl}$imageUrl';
-                            }
-                            
-                            return GestureDetector(
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => StoryViewerScreen(
-                                      stories: categoryStories,
-                                      initialIndex: storyIndex,
+                            GridView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 3,
+                                crossAxisSpacing: 8,
+                                mainAxisSpacing: 8,
+                                childAspectRatio: 0.7,
+                              ),
+                              itemCount: categoryStories.length,
+                              itemBuilder: (context, storyIndex) {
+                                final story = categoryStories[storyIndex];
+                                
+                                // Get first media item for thumbnail
+                                String imageUrl = '';
+                                final mediaItems = story['mediaItems'] as List<dynamic>? ?? [];
+                                if (mediaItems.isNotEmpty) {
+                                  imageUrl = mediaItems[0]['url']?.toString() ?? '';
+                                } else {
+                                  imageUrl = story['image']?.toString() ?? '';
+                                }
+                                
+                                if (imageUrl.startsWith('/uploads/')) {
+                                  imageUrl = '${ApiService.baseServerUrl}$imageUrl';
+                                }
+                                
+                                return GestureDetector(
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => StoryViewerScreen(
+                                          stories: categoryStories,
+                                          initialIndex: storyIndex,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.grey.shade300),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Stack(
+                                        fit: StackFit.expand,
+                                        children: [
+                                          imageUrl.isEmpty
+                                              ? Container(
+                                                  color: Colors.grey.shade200,
+                                                  child: Icon(Icons.image, size: 30, color: Colors.grey.shade500),
+                                                )
+                                              : imageUrl.startsWith('asset:')
+                                                  ? Image.asset(
+                                                      imageUrl.replaceFirst('asset:', ''),
+                                                      fit: BoxFit.cover,
+                                                    )
+                                                  : Image.network(
+                                                      imageUrl,
+                                                      fit: BoxFit.cover,
+                                                      errorBuilder: (context, error, stack) {
+                                                        return Container(
+                                                          color: Colors.grey.shade200,
+                                                          child: Icon(Icons.broken_image, size: 30, color: Colors.grey.shade500),
+                                                        );
+                                                      },
+                                                    ),
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                begin: Alignment.topCenter,
+                                                end: Alignment.bottomCenter,
+                                                colors: [
+                                                  Colors.transparent,
+                                                  Colors.black.withOpacity(0.7),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                          Positioned(
+                                            bottom: 8,
+                                            left: 8,
+                                            right: 8,
+                                            child: Text(
+                                              story['heading'] ?? story['title'] ?? story['storyName'] ?? 'Story',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 );
                               },
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.grey.shade300),
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      imageUrl.isEmpty
-                                          ? Container(
-                                              color: Colors.grey.shade200,
-                                              child: Icon(Icons.image, size: 30, color: Colors.grey.shade500),
-                                            )
-                                          : imageUrl.startsWith('asset:')
-                                              ? Image.asset(
-                                                  imageUrl.replaceFirst('asset:', ''),
-                                                  fit: BoxFit.cover,
-                                                )
-                                              : Image.network(
-                                                  imageUrl,
-                                                  fit: BoxFit.cover,
-                                                  errorBuilder: (context, error, stack) {
-                                                    return Container(
-                                                      color: Colors.grey.shade200,
-                                                      child: Icon(Icons.broken_image, size: 30, color: Colors.grey.shade500),
-                                                    );
-                                                  },
-                                                ),
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            begin: Alignment.topCenter,
-                                            end: Alignment.bottomCenter,
-                                            colors: [
-                                              Colors.transparent,
-                                              Colors.black.withOpacity(0.7),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                      Positioned(
-                                        bottom: 8,
-                                        left: 8,
-                                        right: 8,
-                                        child: Text(
-                                          story['heading'] ?? story['title'] ?? 'Story',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                            ),
                         const SizedBox(height: 24),
                       ],
                     );
@@ -2203,8 +2227,10 @@ class StoryViewerScreen extends StatefulWidget {
 
 class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTickerProviderStateMixin {
   late PageController _pageController;
+  late PageController _mediaController;
   late AnimationController _progressController;
   int _currentIndex = 0;
+  int _currentMediaIndex = 0;
   bool _showDetails = false;
   bool _liked = false;
 
@@ -2213,6 +2239,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
+    _mediaController = PageController();
     _progressController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 5),
@@ -2252,6 +2279,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
   @override
   void dispose() {
     _pageController.dispose();
+    _mediaController.dispose();
     _progressController.dispose();
     super.dispose();
   }
@@ -2279,70 +2307,95 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
               onPageChanged: (index) {
                 setState(() {
                   _currentIndex = index;
+                  _currentMediaIndex = 0;
                   _showDetails = false;
                   _liked = false;
                 });
+                _mediaController = PageController();
                 _startProgress();
               },
               itemBuilder: (context, index) {
                 final story = widget.stories[index];
-                final hasVideo = story['videoUrl'] != null && story['videoUrl'].toString().isNotEmpty;
-                final hasImage = story['image'] != null && story['image'].toString().isNotEmpty;
+                final mediaItems = story['mediaItems'] as List<dynamic>? ?? [];
                 
-                String mediaUrl = '';
-                if (hasVideo) {
-                  mediaUrl = story['videoUrl'].toString();
-                } else if (hasImage) {
-                  mediaUrl = story['image'].toString();
+                // Fallback to legacy single media format
+                if (mediaItems.isEmpty) {
+                  final hasVideo = story['videoUrl'] != null && story['videoUrl'].toString().isNotEmpty;
+                  final hasImage = story['image'] != null && story['image'].toString().isNotEmpty;
+                  
+                  if (hasVideo || hasImage) {
+                    mediaItems.add({
+                      'type': hasVideo ? 'video' : 'image',
+                      'url': hasVideo ? story['videoUrl'] : story['image'],
+                    });
+                  }
                 }
-                
-                if (mediaUrl.startsWith('/uploads/')) {
-                  mediaUrl = '${ApiService.baseServerUrl}$mediaUrl';
-                }
-                
-                print('Story $index: hasVideo=$hasVideo, hasImage=$hasImage, mediaUrl=$mediaUrl');
                 
                 return Stack(
                   fit: StackFit.expand,
                   children: [
-                    mediaUrl.isEmpty
+                    mediaItems.isEmpty
                         ? Container(
                             color: Colors.grey.shade800,
                             child: const Center(
                               child: Icon(Icons.image_not_supported, size: 80, color: Colors.white54),
                             ),
                           )
-                        : hasVideo
-                            ? VideoPlayer(
-                                VideoPlayerController.networkUrl(Uri.parse(mediaUrl))
-                                  ..initialize().then((_) {
-                                    if (index == _currentIndex) {
-                                      VideoPlayerController.networkUrl(Uri.parse(mediaUrl)).play();
-                                    }
-                                  }),
-                              )
-                            : Image.network(
-                                mediaUrl,
-                                fit: BoxFit.cover,
-                                loadingBuilder: (context, child, loadingProgress) {
-                                  if (loadingProgress == null) return child;
-                                  return Container(
-                                    color: Colors.black,
-                                    child: const Center(
-                                      child: CircularProgressIndicator(color: Colors.white),
-                                    ),
-                                  );
-                                },
-                                errorBuilder: (context, error, stackTrace) {
-                                  print('Image load error: $error');
-                                  return Container(
-                                    color: Colors.grey.shade800,
-                                    child: const Center(
-                                      child: Icon(Icons.broken_image, size: 80, color: Colors.white54),
-                                    ),
-                                  );
-                                },
-                              ),
+                        : PageView.builder(
+                            controller: _mediaController,
+                            itemCount: mediaItems.length,
+                            onPageChanged: (mediaIndex) {
+                              setState(() => _currentMediaIndex = mediaIndex);
+                            },
+                            itemBuilder: (context, mediaIndex) {
+                              final media = mediaItems[mediaIndex];
+                              String mediaUrl = media['url']?.toString() ?? '';
+                              
+                              if (mediaUrl.startsWith('/uploads/')) {
+                                mediaUrl = '${ApiService.baseServerUrl}$mediaUrl';
+                              }
+                              
+                              final isVideo = media['type'] == 'video';
+                              
+                              return mediaUrl.isEmpty
+                                  ? Container(
+                                      color: Colors.grey.shade800,
+                                      child: const Center(
+                                        child: Icon(Icons.image_not_supported, size: 80, color: Colors.white54),
+                                      ),
+                                    )
+                                  : isVideo
+                                      ? VideoPlayer(
+                                          VideoPlayerController.networkUrl(Uri.parse(mediaUrl))
+                                            ..initialize().then((_) {
+                                              if (index == _currentIndex && mediaIndex == _currentMediaIndex) {
+                                                VideoPlayerController.networkUrl(Uri.parse(mediaUrl)).play();
+                                              }
+                                            }),
+                                        )
+                                      : Image.network(
+                                          mediaUrl,
+                                          fit: BoxFit.cover,
+                                          loadingBuilder: (context, child, loadingProgress) {
+                                            if (loadingProgress == null) return child;
+                                            return Container(
+                                              color: Colors.black,
+                                              child: const Center(
+                                                child: CircularProgressIndicator(color: Colors.white),
+                                              ),
+                                            );
+                                          },
+                                          errorBuilder: (context, error, stackTrace) {
+                                            return Container(
+                                              color: Colors.grey.shade800,
+                                              child: const Center(
+                                                child: Icon(Icons.broken_image, size: 80, color: Colors.white54),
+                                              ),
+                                            );
+                                          },
+                                        );
+                            },
+                          ),
                     Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -2358,6 +2411,27 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
                         ),
                       ),
                     ),
+                    if (mediaItems.length > 1)
+                      Positioned(
+                        top: 60,
+                        left: 0,
+                        right: 0,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(
+                            mediaItems.length,
+                            (i) => Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 2),
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: i == _currentMediaIndex ? Colors.white : Colors.white.withOpacity(0.5),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     if (!_showDetails)
                       Positioned(
                         left: 20,
@@ -2405,6 +2479,60 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
                             const SizedBox(height: 10),
                             const Icon(Icons.send, color: Colors.white, size: 28),
                           ],
+                        ),
+                      ),
+                    if (mediaItems.length > 1 && !_showDetails)
+                      Positioned(
+                        left: 20,
+                        top: MediaQuery.of(context).size.height * 0.4,
+                        child: GestureDetector(
+                          onTap: () {
+                            if (_currentMediaIndex > 0) {
+                              _mediaController.previousPage(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
+                              );
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.5),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.chevron_left,
+                              color: _currentMediaIndex > 0 ? Colors.white : Colors.white.withOpacity(0.5),
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (mediaItems.length > 1 && !_showDetails)
+                      Positioned(
+                        right: 20,
+                        top: MediaQuery.of(context).size.height * 0.4,
+                        child: GestureDetector(
+                          onTap: () {
+                            if (_currentMediaIndex < mediaItems.length - 1) {
+                              _mediaController.nextPage(
+                                duration: const Duration(milliseconds: 300),
+                                curve: Curves.easeInOut,
+                              );
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.5),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.chevron_right,
+                              color: _currentMediaIndex < mediaItems.length - 1 ? Colors.white : Colors.white.withOpacity(0.5),
+                              size: 24,
+                            ),
+                          ),
                         ),
                       ),
                   ],
