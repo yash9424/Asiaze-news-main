@@ -22,7 +22,8 @@ export default function SettingsPage() {
       users: false,
       notifications: false,
       rewards: false,
-      analytics: false
+      analytics: false,
+      ads: false
     }
   })
   const [showPassword, setShowPassword] = useState(false)
@@ -94,7 +95,8 @@ export default function SettingsPage() {
         users: false,
         notifications: false,
         rewards: false,
-        analytics: false
+        analytics: false,
+        ads: false
       }
     })
     setShowPassword(false)
@@ -232,7 +234,8 @@ export default function SettingsPage() {
                     users: 'Users Management',
                     notifications: 'Notifications',
                     rewards: 'Rewards Management',
-                    analytics: 'Analytics & Reports'
+                    analytics: 'Analytics & Reports',
+                    ads: 'Ads Management'
                   }).map(([key, label]) => (
                     <label key={key} style={styles.checkboxLabel}>
                       <input

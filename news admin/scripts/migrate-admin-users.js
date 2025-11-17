@@ -31,7 +31,8 @@ async function migrateAdminUsers() {
           users: user.role === 'super_admin' || user.role === 'admin',
           notifications: true,
           rewards: user.role === 'super_admin' || user.role === 'admin',
-          analytics: user.role === 'super_admin' || user.role === 'admin'
+          analytics: user.role === 'super_admin' || user.role === 'admin',
+          ads: user.role === 'super_admin' || user.role === 'admin'
         },
         status: user.isActive ? 'Active' : 'Inactive',
         createdAt: user.createdAt || new Date(),

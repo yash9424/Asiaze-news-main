@@ -35,7 +35,8 @@ const AdminUserSchema = new mongoose.Schema({
     users: { type: Boolean, default: false },
     notifications: { type: Boolean, default: false },
     rewards: { type: Boolean, default: false },
-    analytics: { type: Boolean, default: false }
+    analytics: { type: Boolean, default: false },
+    ads: { type: Boolean, default: false }
   },
   status: {
     type: String,

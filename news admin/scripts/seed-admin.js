@@ -34,7 +34,8 @@ async function seedAdmin() {
         users: true,
         notifications: true,
         rewards: true,
-        analytics: true
+        analytics: true,
+        ads: true
       },
       status: 'Active',
       createdAt: new Date(),
