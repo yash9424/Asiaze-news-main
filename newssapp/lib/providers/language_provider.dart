@@ -140,4 +140,5 @@ final Map<String, Map<String, String>> _translations = {
   'preferences_updated': {'english': 'Preferences updated!', 'hindi': 'प्राथमिकताएं अपडेट की गईं!', 'bengali': 'পছন্দ আপডেট হয়েছে!'},
   'content_language': {'english': 'Content Language (News, Stories, Reels)', 'hindi': 'सामग्री भाषा (समाचार, कहानियां, रील)', 'bengali': 'বিষয়বস্তু ভাষা (খবর, গল্প, রিল)'},
   'app_language': {'english': 'App Language (Interface & Options)', 'hindi': 'ऐप भाषा (इंटरफेस और विकल्प)', 'bengali': 'অ্যাপ ভাষা (ইন্টারফেস এবং বিকল্প)'},
+  'other_news': {'english': 'Other News', 'hindi': 'अन्य समाचार', 'bengali': 'অন্যান্য খবর'},
 };

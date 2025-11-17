@@ -12,6 +12,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'category_preferences_screen.dart';
 import 'providers/language_provider.dart';
 
+// Add missing import for SharedPreferences in ArticleDetailScreen
+// (Already imported above)
+
 String formatPublishedDate(dynamic date) {
   if (date == null) return 'Recently';
   try {
@@ -1101,6 +1104,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                 subtitle: summary.isNotEmpty ? summary : content,
                                 meta: 'ASIAZE • ${formatPublishedDate(p['publishedAt'])}',
                                 explanation: explanation,
+                                categoryId: p['category']?['_id']?.toString(),
                               ),
                             );
                           },
@@ -2941,6 +2945,7 @@ class _FeedListState extends State<FeedList> {
             subtitle: summary.isNotEmpty ? summary : content,
             meta: 'ASIAZE • ${formatPublishedDate(article['publishedAt'])}',
             explanation: explanation,
+            categoryId: article['category']?['_id']?.toString(),
           ),
         );
       },
@@ -3530,6 +3535,7 @@ class NewsCard extends StatelessWidget {
   final String subtitle;
   final String meta;
   final String? explanation;
+  final String? categoryId;
   const NewsCard({
     super.key,
     required this.imageUrl,
@@ -3537,6 +3543,7 @@ class NewsCard extends StatelessWidget {
     required this.subtitle,
     required this.meta,
     this.explanation,
+    this.categoryId,
   });
 
   @override
@@ -3560,6 +3567,7 @@ class NewsCard extends StatelessWidget {
                     subtitle: subtitle,
                     meta: meta,
                     explanation: explanation ?? '',
+                    categoryId: categoryId,
                   ),
                 ),
               );
@@ -3680,12 +3688,13 @@ class NewsCard extends StatelessWidget {
 }
 
 // ---------------- Article Detail Screen ----------------
-class ArticleDetailScreen extends StatelessWidget {
+class ArticleDetailScreen extends StatefulWidget {
   final String imageUrl;
   final String title;
   final String subtitle;
   final String meta;
   final String explanation;
+  final String? categoryId;
 
   const ArticleDetailScreen({
     super.key,
@@ -3694,11 +3703,72 @@ class ArticleDetailScreen extends StatelessWidget {
     required this.subtitle,
     required this.meta,
     required this.explanation,
+    this.categoryId,
   });
+
+  @override
+  State<ArticleDetailScreen> createState() => _ArticleDetailScreenState();
+}
+
+class _ArticleDetailScreenState extends State<ArticleDetailScreen> {
+  final ScrollController _scrollController = ScrollController();
+  List<dynamic> _otherNews = [];
+  List<Map<String, dynamic>> _categories = [];
+  bool _loadingOtherNews = false;
+  bool _hasLoadedOtherNews = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent * 0.8 && 
+        !_loadingOtherNews && !_hasLoadedOtherNews) {
+      _loadOtherNews();
+    }
+  }
+
+  Future<void> _loadOtherNews() async {
+    if (_loadingOtherNews || _hasLoadedOtherNews) return;
+    
+    setState(() => _loadingOtherNews = true);
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final langCode = prefs.getString('language') ?? 'EN';
+      final language = langCode == 'HIN' ? 'hindi' : (langCode == 'BEN' ? 'bengali' : 'english');
+      
+      // Get categories and other news
+      final categories = await ApiService.getCategories();
+      final allNews = await ApiService.getNews(language: language);
+      
+      // Filter out current article and get diverse news from different categories
+      final otherNews = allNews.where((news) => news['title'] != widget.title).toList();
+      
+      setState(() {
+        _categories = List<Map<String, dynamic>>.from(categories);
+        _otherNews = otherNews.take(10).toList(); // Limit to 10 articles
+        _loadingOtherNews = false;
+        _hasLoadedOtherNews = true;
+      });
+    } catch (e) {
+      setState(() => _loadingOtherNews = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final red = AsiazeApp.primaryRed;
+    final lang = Provider.of<LanguageProvider>(context);
+    
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
@@ -3721,7 +3791,7 @@ class ArticleDetailScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.share, color: Colors.black),
             onPressed: () async {
-              await Clipboard.setData(ClipboardData(text: title));
+              await Clipboard.setData(ClipboardData(text: widget.title));
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Link copied')),
               );
@@ -3731,132 +3801,203 @@ class ArticleDetailScreen extends StatelessWidget {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: imageUrl.startsWith('asset:')
-                      ? Image.asset(
-                          imageUrl.replaceFirst('asset:', ''),
-                          width: double.infinity,
-                          height: 200,
-                          fit: BoxFit.cover,
-                        )
-                      : Image.network(
-                          imageUrl,
-                          width: double.infinity,
-                          height: 200,
-                          fit: BoxFit.cover,
-                        ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    height: 1.3,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade700,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  meta,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  height: 2,
-                  width: double.infinity,
-                  color: red,
-                ),
-                const SizedBox(height: 16),
-                if (explanation.isNotEmpty)
-                  Text(
-                    explanation,
-                    style: TextStyle(
-                      fontSize: 15,
-                      height: 1.7,
-                      color: Colors.grey.shade800,
-                    ),
-                  ),
-                const SizedBox(height: 32),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+          controller: _scrollController,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Main Article Content
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ValueListenableBuilder<List<SavedArticle>>(
-                      valueListenable: SavedArticlesStore.saved,
-                      builder: (context, saved, _) {
-                        final isSaved = saved.any((e) => e.title == title);
-                        return IconButton(
-                          icon: Icon(
-                            isSaved ? Icons.favorite : Icons.favorite_border,
-                            size: 32,
-                            color: Colors.black,
-                          ),
-                          onPressed: () {
-                            SavedArticlesStore.toggle(SavedArticle(
-                              image: imageUrl,
-                              title: title,
-                              subtitle: subtitle,
-                              meta: meta,
-                            ));
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: widget.imageUrl.startsWith('asset:')
+                          ? Image.asset(
+                              widget.imageUrl.replaceFirst('asset:', ''),
+                              width: double.infinity,
+                              height: 200,
+                              fit: BoxFit.cover,
+                            )
+                          : Image.network(
+                              widget.imageUrl,
+                              width: double.infinity,
+                              height: 200,
+                              fit: BoxFit.cover,
+                            ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      widget.title,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        height: 1.3,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      widget.subtitle,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade700,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      widget.meta,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      height: 2,
+                      width: double.infinity,
+                      color: red,
+                    ),
+                    const SizedBox(height: 16),
+                    if (widget.explanation.isNotEmpty)
+                      Text(
+                        widget.explanation,
+                        style: TextStyle(
+                          fontSize: 15,
+                          height: 1.7,
+                          color: Colors.grey.shade800,
+                        ),
+                      ),
+                    const SizedBox(height: 32),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ValueListenableBuilder<List<SavedArticle>>(
+                          valueListenable: SavedArticlesStore.saved,
+                          builder: (context, saved, _) {
+                            final isSaved = saved.any((e) => e.title == widget.title);
+                            return IconButton(
+                              icon: Icon(
+                                isSaved ? Icons.favorite : Icons.favorite_border,
+                                size: 32,
+                                color: Colors.black,
+                              ),
+                              onPressed: () {
+                                SavedArticlesStore.toggle(SavedArticle(
+                                  image: widget.imageUrl,
+                                  title: widget.title,
+                                  subtitle: widget.subtitle,
+                                  meta: widget.meta,
+                                ));
+                              },
+                            );
                           },
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 24),
-                    ValueListenableBuilder<List<SavedArticle>>(
-                      valueListenable: SavedArticlesStore.saved,
-                      builder: (context, saved, _) {
-                        final isSaved = saved.any((e) => e.title == title);
-                        return IconButton(
-                          icon: Icon(
-                            isSaved ? Icons.bookmark : Icons.bookmark_border,
-                            size: 32,
-                            color: Colors.black,
-                          ),
-                          onPressed: () {
-                            SavedArticlesStore.toggle(SavedArticle(
-                              image: imageUrl,
-                              title: title,
-                              subtitle: subtitle,
-                              meta: meta,
-                            ));
+                        ),
+                        const SizedBox(width: 24),
+                        ValueListenableBuilder<List<SavedArticle>>(
+                          valueListenable: SavedArticlesStore.saved,
+                          builder: (context, saved, _) {
+                            final isSaved = saved.any((e) => e.title == widget.title);
+                            return IconButton(
+                              icon: Icon(
+                                isSaved ? Icons.bookmark : Icons.bookmark_border,
+                                size: 32,
+                                color: Colors.black,
+                              ),
+                              onPressed: () {
+                                SavedArticlesStore.toggle(SavedArticle(
+                                  image: widget.imageUrl,
+                                  title: widget.title,
+                                  subtitle: widget.subtitle,
+                                  meta: widget.meta,
+                                ));
+                              },
+                            );
                           },
-                        );
-                      },
+                        ),
+                        const SizedBox(width: 24),
+                        IconButton(
+                          icon: const Icon(Icons.share, size: 32, color: Colors.black),
+                          onPressed: () async {
+                            await Clipboard.setData(ClipboardData(text: widget.title));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Link copied')),
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 24),
-                    IconButton(
-                      icon: const Icon(Icons.share, size: 32, color: Colors.black),
-                      onPressed: () async {
-                        await Clipboard.setData(ClipboardData(text: title));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Link copied')),
-                        );
-                      },
-                    ),
+                    const SizedBox(height: 40),
                   ],
                 ),
-                const SizedBox(height: 40),
-              ],
-            ),
+              ),
+              
+              // Other News Section
+              if (_loadingOtherNews)
+                const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              
+              if (_hasLoadedOtherNews && _otherNews.isNotEmpty) ...[
+                Container(
+                  width: double.infinity,
+                  color: Colors.white,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        lang.translate('other_news'),
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: red,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Discover more stories from different categories',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Other News List
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _otherNews.length,
+                  itemBuilder: (context, index) {
+                    final article = _otherNews[index];
+                    final title = lang.getNewsContent(article, 'title');
+                    final summary = lang.getNewsContent(article, 'summary');
+                    final content = lang.getNewsContent(article, 'content');
+                    final explanation = lang.getNewsContent(article, 'explanation');
+                    
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: NewsCard(
+                        imageUrl: article['image'] ?? 'asset:refranceimages/Group (16).png',
+                        title: title.isNotEmpty ? title : 'No Title',
+                        subtitle: summary.isNotEmpty ? summary : content,
+                        meta: 'ASIAZE • ${formatPublishedDate(article['publishedAt'])}',
+                        explanation: explanation,
+                        categoryId: article['category']?['_id']?.toString(),
+                      ),
+                    );
+                  },
+                ),
+                
+                const SizedBox(height: 20),
+              ]
+            ],
           ),
         ),
       ),
