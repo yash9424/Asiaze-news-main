@@ -2227,7 +2227,7 @@ class StoryViewerScreen extends StatefulWidget {
 
 class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTickerProviderStateMixin {
   late PageController _pageController;
-  late PageController _mediaController;
+
   late AnimationController _progressController;
   int _currentIndex = 0;
   int _currentMediaIndex = 0;
@@ -2239,7 +2239,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: _currentIndex);
-    _mediaController = PageController();
+
     _progressController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 5),
@@ -2250,8 +2250,40 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
   void _startProgress() {
     _progressController.reset();
     _progressController.forward().then((_) {
-      if (mounted) _nextStory();
+      if (mounted) _nextMedia();
     });
+  }
+
+  void _nextMedia() {
+    final story = widget.stories[_currentIndex];
+    final mediaItems = story['mediaItems'] as List<dynamic>? ?? [];
+    
+    if (mediaItems.isEmpty) {
+      _nextStory();
+      return;
+    }
+    
+    if (_currentMediaIndex < mediaItems.length - 1) {
+      setState(() {
+        _currentMediaIndex++;
+        _showDetails = false;
+      });
+      _startProgress();
+    } else {
+      _nextStory();
+    }
+  }
+
+  void _previousMedia() {
+    if (_currentMediaIndex > 0) {
+      setState(() {
+        _currentMediaIndex--;
+        _showDetails = false;
+      });
+      _startProgress();
+    } else {
+      _previousStory();
+    }
   }
 
   void _nextStory() {
@@ -2279,7 +2311,6 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
   @override
   void dispose() {
     _pageController.dispose();
-    _mediaController.dispose();
     _progressController.dispose();
     super.dispose();
   }
@@ -2293,9 +2324,9 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
           if (_showDetails) return;
           final screenWidth = MediaQuery.of(context).size.width;
           if (details.globalPosition.dx < screenWidth / 2) {
-            _previousStory();
+            _previousMedia();
           } else {
-            _nextStory();
+            _nextMedia();
           }
         },
         child: Stack(
@@ -2311,7 +2342,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
                   _showDetails = false;
                   _liked = false;
                 });
-                _mediaController = PageController();
+
                 _startProgress();
               },
               itemBuilder: (context, index) {
@@ -2341,27 +2372,34 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
                               child: Icon(Icons.image_not_supported, size: 80, color: Colors.white54),
                             ),
                           )
-                        : PageView.builder(
-                            controller: _mediaController,
-                            itemCount: mediaItems.length,
-                            onPageChanged: (mediaIndex) {
-                              setState(() => _currentMediaIndex = mediaIndex);
-                            },
-                            itemBuilder: (context, mediaIndex) {
-                              final media = mediaItems[mediaIndex];
+                        : IndexedStack(
+                            index: _currentMediaIndex,
+                            children: mediaItems.asMap().entries.map((entry) {
+                              final mediaIndex = entry.key;
+                              final media = entry.value;
                               String mediaUrl = media['url']?.toString() ?? '';
+                              
+                              print('📱 Loading media $mediaIndex: $mediaUrl');
                               
                               if (mediaUrl.startsWith('/uploads/')) {
                                 mediaUrl = '${ApiService.baseServerUrl}$mediaUrl';
                               }
+                              
+                              print('📸 Final media URL: $mediaUrl');
                               
                               final isVideo = media['type'] == 'video';
                               
                               return mediaUrl.isEmpty
                                   ? Container(
                                       color: Colors.grey.shade800,
-                                      child: const Center(
-                                        child: Icon(Icons.image_not_supported, size: 80, color: Colors.white54),
+                                      child: Center(
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            const Icon(Icons.image_not_supported, size: 80, color: Colors.white54),
+                                            Text('Media ${mediaIndex + 1}', style: const TextStyle(color: Colors.white)),
+                                          ],
+                                        ),
                                       ),
                                     )
                                   : isVideo
@@ -2373,28 +2411,42 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
                                               }
                                             }),
                                         )
-                                      : Image.network(
-                                          mediaUrl,
-                                          fit: BoxFit.cover,
-                                          loadingBuilder: (context, child, loadingProgress) {
-                                            if (loadingProgress == null) return child;
-                                            return Container(
-                                              color: Colors.black,
-                                              child: const Center(
-                                                child: CircularProgressIndicator(color: Colors.white),
-                                              ),
-                                            );
-                                          },
-                                          errorBuilder: (context, error, stackTrace) {
-                                            return Container(
-                                              color: Colors.grey.shade800,
-                                              child: const Center(
-                                                child: Icon(Icons.broken_image, size: 80, color: Colors.white54),
-                                              ),
-                                            );
-                                          },
+                                      : SizedBox.expand(
+                                          child: Image.network(
+                                            mediaUrl,
+                                            fit: BoxFit.cover,
+                                            width: double.infinity,
+                                            height: double.infinity,
+                                            loadingBuilder: (context, child, loadingProgress) {
+                                              if (loadingProgress == null) return child;
+                                              return Container(
+                                                color: Colors.black,
+                                                child: const Center(
+                                                  child: CircularProgressIndicator(color: Colors.white),
+                                                ),
+                                              );
+                                            },
+                                            errorBuilder: (context, error, stackTrace) {
+                                              print('❌ Image load error for $mediaUrl: $error');
+                                              return Container(
+                                                color: Colors.grey.shade800,
+                                                child: Center(
+                                                  child: Column(
+                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    children: [
+                                                      const Icon(Icons.broken_image, size: 80, color: Colors.white54),
+                                                      Text('Image ${mediaIndex + 1}', style: const TextStyle(color: Colors.white)),
+                                                      Text('URL: $mediaUrl', style: const TextStyle(color: Colors.white54, fontSize: 10)),
+                                                      const SizedBox(height: 8),
+                                                      const Text('Check if server is running', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                                                    ],
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
                                         );
-                            },
+                            }).toList(),
                           ),
                     Container(
                       decoration: BoxDecoration(
@@ -2481,60 +2533,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
                           ],
                         ),
                       ),
-                    if (mediaItems.length > 1 && !_showDetails)
-                      Positioned(
-                        left: 20,
-                        top: MediaQuery.of(context).size.height * 0.4,
-                        child: GestureDetector(
-                          onTap: () {
-                            if (_currentMediaIndex > 0) {
-                              _mediaController.previousPage(
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeInOut,
-                              );
-                            }
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.5),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.chevron_left,
-                              color: _currentMediaIndex > 0 ? Colors.white : Colors.white.withOpacity(0.5),
-                              size: 24,
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (mediaItems.length > 1 && !_showDetails)
-                      Positioned(
-                        right: 20,
-                        top: MediaQuery.of(context).size.height * 0.4,
-                        child: GestureDetector(
-                          onTap: () {
-                            if (_currentMediaIndex < mediaItems.length - 1) {
-                              _mediaController.nextPage(
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeInOut,
-                              );
-                            }
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.5),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.chevron_right,
-                              color: _currentMediaIndex < mediaItems.length - 1 ? Colors.white : Colors.white.withOpacity(0.5),
-                              size: 24,
-                            ),
-                          ),
-                        ),
-                      ),
+
                   ],
                 );
               },
@@ -2602,28 +2601,40 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> with SingleTicker
                 child: Row(
                   children: [
                     Expanded(
-                      child: Row(
-                        children: List.generate(
-                          widget.stories.length,
-                          (index) => Expanded(
-                            child: Container(
-                              height: 3,
-                              margin: const EdgeInsets.symmetric(horizontal: 2),
-                              child: AnimatedBuilder(
-                                animation: _progressController,
-                                builder: (context, child) {
-                                  return LinearProgressIndicator(
-                                    value: index == _currentIndex
-                                        ? _progressController.value
-                                        : (index < _currentIndex ? 1.0 : 0.0),
-                                    backgroundColor: Colors.white.withOpacity(0.3),
-                                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                                  );
-                                },
+                      child: Builder(
+                        builder: (context) {
+                          final story = widget.stories[_currentIndex];
+                          final mediaItems = story['mediaItems'] as List<dynamic>? ?? [];
+                          final totalSegments = mediaItems.isEmpty ? 1 : mediaItems.length;
+                          
+                          return Row(
+                            children: List.generate(
+                              totalSegments,
+                              (index) => Expanded(
+                                child: Container(
+                                  height: 3,
+                                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                                  child: AnimatedBuilder(
+                                    animation: _progressController,
+                                    builder: (context, child) {
+                                      double value = 0.0;
+                                      if (index < _currentMediaIndex) {
+                                        value = 1.0;
+                                      } else if (index == _currentMediaIndex) {
+                                        value = _progressController.value;
+                                      }
+                                      return LinearProgressIndicator(
+                                        value: value,
+                                        backgroundColor: Colors.white.withOpacity(0.3),
+                                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                      );
+                                    },
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
+                          );
+                        },
                       ),
                     ),
                     IconButton(
