@@ -86,6 +86,7 @@ final Map<String, Map<String, String>> _translations = {
   'dont_have_account': {'english': "Don't have an account?", 'hindi': 'खाता नहीं है?', 'bengali': 'অ্যাকাউন্ট নেই?'},
   'already_have_account': {'english': 'Already have an account?', 'hindi': 'पहले से खाता है?', 'bengali': 'ইতিমধ্যে অ্যাকাউন্ট আছে?'},
   'my_feed': {'english': 'My Feed', 'hindi': 'मेरा फ़ीड', 'bengali': 'আমার ফিড'},
+  'my_state': {'english': 'My State', 'hindi': 'मेरा राज्य', 'bengali': 'আমার রাজ্য'},
   'story': {'english': 'Story', 'hindi': 'कहानी', 'bengali': 'গল্প'},
   'profile': {'english': 'Profile', 'hindi': 'प्रोफ़ाइल', 'bengali': 'প্রোফাইল'},
   'settings': {'english': 'Settings', 'hindi': 'सेटिंग्स', 'bengali': 'সেটিংস'},

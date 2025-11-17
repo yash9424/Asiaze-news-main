@@ -1036,7 +1036,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     Padding(
                       padding: const EdgeInsets.only(right: 12),
                       child: ChoiceChip(
-                        label: Text(lang.translate('my_feed')),
+                        label: Text(lang.translate('my_state')),
                         selected: _selectedCategory.isEmpty,
                         onSelected: (_) {
                           setState(() => _selectedCategory = '');
