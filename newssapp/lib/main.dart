@@ -660,8 +660,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
+  String? _selectedState;
   bool _obscure = true;
   bool _loading = false;
+
+  final List<String> _indianStates = [
+    // States (28)
+    'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+    'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+    'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
+    'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+    'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+    // Union Territories (8)
+    'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra & Nagar Haveli and Daman & Diu',
+    'Delhi (NCT of Delhi)', 'Jammu & Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
+  ];
 
   @override
   void dispose() {
@@ -727,6 +740,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    const Text('State'),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _selectedState,
+                      hint: const Text('Select your state'),
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _indianStates.map((state) {
+                        return DropdownMenuItem(
+                          value: state,
+                          child: Text(state),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedState = value;
+                        });
+                      },
+                    ),
                     const SizedBox(height: 24),
                     SizedBox(
                       height: 48,
@@ -739,7 +773,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                         ),
                         onPressed: _loading ? null : () async {
-                          if (_nameCtrl.text.isEmpty || _emailCtrl.text.isEmpty || _passCtrl.text.isEmpty) {
+                          if (_nameCtrl.text.isEmpty || _emailCtrl.text.isEmpty || _passCtrl.text.isEmpty || _selectedState == null) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('Please fill all fields')),
                             );
@@ -753,6 +787,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               _nameCtrl.text,
                               _emailCtrl.text,
                               _passCtrl.text,
+                              _selectedState!,
                             );
                             
                             if (!mounted) return;
@@ -1080,6 +1115,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   String _userName = '';
   String _userEmail = '';
+  String _userState = '';
   String _initials = '';
 
   @override
@@ -1090,11 +1126,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId');
+    
     setState(() {
       _userName = prefs.getString('userName') ?? 'User';
       _userEmail = prefs.getString('userEmail') ?? 'user@example.com';
       _initials = _getInitials(_userName);
     });
+    
+    // Fetch user state from backend
+    if (userId != null && userId.isNotEmpty) {
+      try {
+        final response = await ApiService.getUserProfile(userId);
+        final user = response['user'] ?? response;
+        setState(() {
+          _userState = user['state'] ?? 'Not specified';
+        });
+      } catch (e) {
+        setState(() {
+          _userState = 'Not specified';
+        });
+      }
+    }
   }
 
   String _getInitials(String name) {
@@ -1163,7 +1216,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const Divider(height: 1),
           ListTile(
             leading: Icon(Icons.location_on, color: red),
-            title: Text('${Provider.of<LanguageProvider>(context).translate('your_state')} : ${Provider.of<LanguageProvider>(context).translate('west_bengal')}'),
+            title: Text('${Provider.of<LanguageProvider>(context).translate('your_state')} : $_userState'),
           ),
           const Divider(),
           const SizedBox(height: 16),

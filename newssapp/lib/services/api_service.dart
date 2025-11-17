@@ -33,11 +33,11 @@ class ApiService {
   }
 
   // Sign Up
-  static Future<Map<String, dynamic>> signUp(String name, String email, String password) async {
+  static Future<Map<String, dynamic>> signUp(String name, String email, String password, String state) async {
     final response = await http.post(
       Uri.parse('$baseUrl/users'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'name': name, 'email': email, 'password': password, 'role': 'user'}),
+      body: jsonEncode({'name': name, 'email': email, 'password': password, 'state': state, 'role': 'user'}),
     );
 
     if (response.statusCode == 201) {
