@@ -29,13 +29,13 @@ export async function POST(req: NextRequest) {
     }
 
     const token = jwt.sign(
-      { userId: user._id, email: user.email, role: user.roleName },
+      { userId: user._id, email: user.email, role: user.roleName, modules: user.modules },
       process.env.JWT_SECRET!,
       { expiresIn: '7d' }
     );
 
     const response = NextResponse.json({
-      user: { id: user._id, name: user.name, email: user.email, role: user.roleName }
+      user: { id: user._id, name: user.name, email: user.email, role: user.roleName, modules: user.modules }
     }, {
       headers: corsHeaders()
     });

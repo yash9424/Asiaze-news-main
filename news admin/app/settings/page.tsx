@@ -25,6 +25,7 @@ export default function SettingsPage() {
       analytics: false
     }
   })
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -96,6 +97,7 @@ export default function SettingsPage() {
         analytics: false
       }
     })
+    setShowPassword(false)
   }
 
   const handleEdit = (user: any) => {
@@ -178,13 +180,22 @@ export default function SettingsPage() {
 
                 <div style={styles.field}>
                   <label style={styles.label}>Password {editingId ? '(Leave blank to keep current)' : '*'}</label>
-                  <input 
-                    type="password" 
-                    style={styles.input}
-                    value={formData.password}
-                    onChange={(e) => handleInputChange('password', e.target.value)}
-                    placeholder={editingId ? "Leave blank to keep current password" : "Enter password"}
-                  />
+                  <div style={styles.passwordContainer}>
+                    <input 
+                      type={showPassword ? 'text' : 'password'} 
+                      style={styles.passwordInput}
+                      value={formData.password}
+                      onChange={(e) => handleInputChange('password', e.target.value)}
+                      placeholder={editingId ? "Leave blank to keep current password" : "Enter password"}
+                    />
+                    <button
+                      type="button"
+                      style={styles.eyeButton}
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? '👁️' : '🙈'}
+                    </button>
+                  </div>
                 </div>
 
                 <div style={styles.field}>
@@ -373,6 +384,28 @@ const styles = {
     borderRadius: '6px',
     fontSize: '14px',
     backgroundColor: 'white',
+  },
+  passwordContainer: {
+    position: 'relative' as const,
+    display: 'flex',
+    alignItems: 'center',
+  },
+  passwordInput: {
+    padding: '12px 45px 12px 12px',
+    border: '1px solid #d1d5db',
+    borderRadius: '6px',
+    fontSize: '14px',
+    backgroundColor: 'white',
+    width: '100%',
+  },
+  eyeButton: {
+    position: 'absolute' as const,
+    right: '12px',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '16px',
+    padding: '4px',
   },
   modulesSection: {
     marginBottom: '25px',
