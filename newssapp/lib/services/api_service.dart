@@ -167,4 +167,19 @@ class ApiService {
       throw Exception('Failed to load notifications');
     }
   }
+
+  // Update user profile
+  static Future<Map<String, dynamic>> updateUserProfile(String userId, Map<String, dynamic> data) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/users/$userId'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(data),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to update user profile: ${response.body}');
+    }
+  }
 }

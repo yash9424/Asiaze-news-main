@@ -4,7 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:ui' as ui;
+import 'dart:convert';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
 import 'services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'category_preferences_screen.dart';
@@ -1117,6 +1119,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _userEmail = '';
   String _userState = '';
   String _initials = '';
+  
+  final List<String> _indianStates = [
+    'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+    'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+    'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
+    'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+    'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+    'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra & Nagar Haveli and Daman & Diu',
+    'Delhi (NCT of Delhi)', 'Jammu & Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
+  ];
 
   @override
   void initState() {
@@ -1155,6 +1167,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (parts.isEmpty) return 'U';
     if (parts.length == 1) return parts[0][0].toUpperCase();
     return '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase();
+  }
+
+  void _showStateSelector() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Select Your State'),
+        content: Container(
+          width: double.maxFinite,
+          child: DropdownButton<String>(
+            value: _indianStates.contains(_userState) ? _userState : null,
+            isExpanded: true,
+            hint: Text('Choose your state'),
+            items: _indianStates.map((state) => 
+              DropdownMenuItem(
+                value: state,
+                child: Text(state),
+              )
+            ).toList(),
+            onChanged: (newState) {
+              Navigator.pop(context);
+              if (newState != null) {
+                _updateUserState(newState);
+              }
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateUserState(String newState) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId');
+      
+      print('🔍 Updating state for userId: $userId to: $newState');
+      
+      if (userId != null && userId.isNotEmpty) {
+        // Update in backend using ApiService
+        final result = await ApiService.updateUserProfile(userId, {'state': newState});
+        
+        print('✅ API Success: $result');
+        
+        setState(() {
+          _userState = newState;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('State updated to $newState')),
+        );
+      } else {
+        print('❌ No userId found');
+        throw Exception('User ID not found');
+      }
+    } catch (e) {
+      print('❌ Update error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update state: $e')),
+      );
+    }
   }
 
   @override
@@ -1217,6 +1296,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ListTile(
             leading: Icon(Icons.location_on, color: red),
             title: Text('${Provider.of<LanguageProvider>(context).translate('your_state')} : $_userState'),
+            trailing: Icon(Icons.edit, color: red),
+            onTap: () => _showStateSelector(),
           ),
           const Divider(),
           const SizedBox(height: 16),
