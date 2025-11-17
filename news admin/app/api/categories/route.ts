@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Category from '@/models/Category';
+import { createCorsResponse, createCorsErrorResponse, handleOptionsRequest } from '@/lib/cors';
 
 export async function GET() {
   try {
     await dbConnect();
     const categories = await Category.find().sort({ name: 1 });
-    return NextResponse.json({ categories });
+    return createCorsResponse({ categories });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch categories' }, { status: 500 });
+    return createCorsErrorResponse('Failed to fetch categories', 500);
   }
 }
 
@@ -19,9 +20,13 @@ export async function POST(req: NextRequest) {
     console.log('Creating category with data:', data);
     const category = await Category.create(data);
     console.log('Created category:', category);
-    return NextResponse.json({ category }, { status: 201 });
+    return createCorsResponse({ category }, { status: 201 });
   } catch (error: any) {
     console.error('Error creating category:', error);
-    return NextResponse.json({ error: error.message || 'Failed to create category' }, { status: 500 });
+    return createCorsErrorResponse(error.message || 'Failed to create category', 500);
   }
+}
+
+export async function OPTIONS() {
+  return handleOptionsRequest();
 }

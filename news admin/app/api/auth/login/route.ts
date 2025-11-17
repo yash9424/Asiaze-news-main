@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
+import { createCorsResponse, createCorsErrorResponse, handleOptionsRequest, corsHeaders } from '@/lib/cors';
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,21 +11,21 @@ export async function POST(req: NextRequest) {
     const { email, password } = await req.json();
 
     if (!email || !password) {
-      return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
+      return createCorsErrorResponse('Email and password required', 400);
     }
 
     const user = await User.findOne({ email });
     if (!user) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+      return createCorsErrorResponse('Invalid credentials', 401);
     }
 
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+      return createCorsErrorResponse('Invalid credentials', 401);
     }
 
     if (!user.isActive) {
-      return NextResponse.json({ error: 'Account is inactive' }, { status: 403 });
+      return createCorsErrorResponse('Account is inactive', 403);
     }
 
     const token = jwt.sign(
@@ -35,6 +36,8 @@ export async function POST(req: NextRequest) {
 
     const response = NextResponse.json({
       user: { id: user._id, name: user.name, email: user.email, role: user.role }
+    }, {
+      headers: corsHeaders()
     });
 
     response.cookies.set('token', token, {
@@ -46,6 +49,10 @@ export async function POST(req: NextRequest) {
 
     return response;
   } catch (error) {
-    return NextResponse.json({ error: 'Login failed' }, { status: 500 });
+    return createCorsErrorResponse('Login failed', 500);
   }
+}
+
+export async function OPTIONS() {
+  return handleOptionsRequest();
 }

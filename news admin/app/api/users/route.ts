@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
+import { createCorsResponse, createCorsErrorResponse, handleOptionsRequest } from '@/lib/cors';
 
 export async function GET() {
   try {
     await dbConnect();
     const users = await User.find().select('-password').sort({ createdAt: -1 });
-    return NextResponse.json({ users });
+    return createCorsResponse({ users });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
+    return createCorsErrorResponse('Failed to fetch users', 500);
   }
 }
 
@@ -25,8 +26,12 @@ export async function POST(req: NextRequest) {
     });
 
     const { password, ...userWithoutPassword } = user.toObject();
-    return NextResponse.json({ user: userWithoutPassword }, { status: 201 });
+    return createCorsResponse({ user: userWithoutPassword }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
+    return createCorsErrorResponse('Failed to create user', 500);
   }
+}
+
+export async function OPTIONS() {
+  return handleOptionsRequest();
 }

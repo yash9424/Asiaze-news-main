@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import dbConnect from '@/lib/mongodb';
 import User from '@/models/User';
+import { createCorsResponse, createCorsErrorResponse, handleOptionsRequest } from '@/lib/cors';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -10,12 +11,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const user = await User.findById(id).select('-password');
 
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return createCorsErrorResponse('User not found', 404);
     }
 
-    return NextResponse.json({ user });
+    return createCorsResponse({ user });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });
+    return createCorsErrorResponse('Failed to fetch user', 500);
   }
 }
 
@@ -32,12 +33,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const user = await User.findByIdAndUpdate(id, data, { new: true }).select('-password');
 
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return createCorsErrorResponse('User not found', 404);
     }
 
-    return NextResponse.json({ user });
+    return createCorsResponse({ user });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
+    return createCorsErrorResponse('Failed to update user', 500);
   }
 }
 
@@ -48,11 +49,15 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const user = await User.findByIdAndDelete(id);
 
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return createCorsErrorResponse('User not found', 404);
     }
 
-    return NextResponse.json({ message: 'User deleted successfully' });
+    return createCorsResponse({ message: 'User deleted successfully' });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
+    return createCorsErrorResponse('Failed to delete user', 500);
   }
+}
+
+export async function OPTIONS() {
+  return handleOptionsRequest();
 }

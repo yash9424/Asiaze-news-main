@@ -3,6 +3,7 @@ import dbConnect from '@/lib/mongodb';
 import News from '@/models/News';
 import Tag from '@/models/Tag';
 import Category from '@/models/Category';
+import { createCorsResponse, createCorsErrorResponse, handleOptionsRequest } from '@/lib/cors';
 
 export async function GET(req: NextRequest) {
   try {
@@ -34,10 +35,10 @@ export async function GET(req: NextRequest) {
       .lean()
       .sort({ publishedAt: -1, createdAt: -1 });
 
-    return NextResponse.json({ news });
+    return createCorsResponse({ news });
   } catch (error: any) {
     console.error('Error fetching news:', error);
-    return NextResponse.json({ error: error.message || 'Failed to fetch news' }, { status: 500 });
+    return createCorsErrorResponse(error.message || 'Failed to fetch news', 500);
   }
 }
 
@@ -77,9 +78,13 @@ export async function POST(req: NextRequest) {
     console.log('Created news with languages:', news.languages);
     console.log('Created news with translations:', news.translations);
 
-    return NextResponse.json({ news }, { status: 201 });
+    return createCorsResponse({ news }, { status: 201 });
   } catch (error: any) {
     console.error('Error creating news:', error);
-    return NextResponse.json({ error: error.message || 'Failed to create news' }, { status: 500 });
+    return createCorsErrorResponse(error.message || 'Failed to create news', 500);
   }
+}
+
+export async function OPTIONS() {
+  return handleOptionsRequest();
 }

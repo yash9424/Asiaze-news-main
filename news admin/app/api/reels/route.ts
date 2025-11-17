@@ -3,6 +3,7 @@ import dbConnect from '@/lib/mongodb';
 import Reel from '@/models/Reel';
 import Tag from '@/models/Tag';
 import Category from '@/models/Category';
+import { createCorsResponse, createCorsErrorResponse, handleOptionsRequest } from '@/lib/cors';
 
 export async function GET(req: NextRequest) {
   try {
@@ -29,10 +30,10 @@ export async function GET(req: NextRequest) {
       .sort({ createdAt: -1 });
     
     console.log(`Found ${reels.length} reels`);
-    return NextResponse.json({ reels });
+    return createCorsResponse({ reels });
   } catch (error: any) {
     console.error('Error fetching reels:', error);
-    return NextResponse.json({ error: error.message || 'Failed to fetch reels' }, { status: 500 });
+    return createCorsErrorResponse(error.message || 'Failed to fetch reels', 500);
   }
 }
 
@@ -64,9 +65,13 @@ export async function POST(req: NextRequest) {
       updatedAt: new Date()
     });
 
-    return NextResponse.json({ reel }, { status: 201 });
+    return createCorsResponse({ reel }, { status: 201 });
   } catch (error: any) {
     console.error('Error creating reel:', error);
-    return NextResponse.json({ error: error.message || 'Failed to create reel' }, { status: 500 });
+    return createCorsErrorResponse(error.message || 'Failed to create reel', 500);
   }
+}
+
+export async function OPTIONS() {
+  return handleOptionsRequest();
 }

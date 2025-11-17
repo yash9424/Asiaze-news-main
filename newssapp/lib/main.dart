@@ -165,7 +165,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       title: 'Watch Short News Reels Instantly',
       subtitle: 'Scroll through quick video updates anytime',
       assetName: 'refranceimages/749bdeef4bdd026b9e097927f39b724af759225c.png',
-      fallbackUrl: 'https://images.unsplash.com/photo-1611162618071-b39a2ec1f9ff?q=80&w=800&auto=format&fit=crop',
+      fallbackUrl: 'https://images.unsplash.com/photo-1611162617474-5b21f2e2d7ab?q=80&w=800&auto=format&fit=crop',
     ),
   ];
 
