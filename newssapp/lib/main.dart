@@ -3074,6 +3074,23 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _notif = true;
+  String _contentLang = 'EN';
+  String _appLang = 'EN';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguageSettings();
+  }
+
+  Future<void> _loadLanguageSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lang = Provider.of<LanguageProvider>(context, listen: false);
+    setState(() {
+      _contentLang = lang.contentLanguageCode;
+      _appLang = lang.languageCode;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -3086,16 +3103,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
+            child: Column(
               children: [
-                const Icon(Icons.language),
-                const SizedBox(width: 12),
-                Expanded(child: Text(lang.translate('language'))),
-                _chip('EN', lang),
-                const SizedBox(width: 8),
-                _chip('HIN', lang),
-                const SizedBox(width: 8),
-                _chip('BEN', lang),
+                Row(
+                  children: [
+                    const Icon(Icons.article),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(lang.translate('content_language'))),
+                    _contentChip('EN', lang),
+                    const SizedBox(width: 8),
+                    _contentChip('HIN', lang),
+                    const SizedBox(width: 8),
+                    _contentChip('BEN', lang),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Icon(Icons.language),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(lang.translate('app_language'))),
+                    _appChip('EN', lang),
+                    const SizedBox(width: 8),
+                    _appChip('HIN', lang),
+                    const SizedBox(width: 8),
+                    _appChip('BEN', lang),
+                  ],
+                ),
               ],
             ),
           ),
@@ -3155,13 +3189,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _chip(String value, LanguageProvider lang) {
-    final selected = lang.languageCode == value;
+  Widget _contentChip(String value, LanguageProvider lang) {
+    final selected = _contentLang == value;
     return ChoiceChip(
       label: Text(value),
       selected: selected,
       onSelected: (_) async {
-        await lang.setLanguage(value);
+        setState(() => _contentLang = value);
+        await lang.setContentLanguage(value);
+        
         final prefs = await SharedPreferences.getInstance();
         final userId = prefs.getString('userId');
         if (userId != null && userId.isNotEmpty) {
@@ -3169,9 +3205,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
           try {
             await ApiService.updateUserPreferences(userId, value, categoryIds);
           } catch (e) {
-            print('Failed to update language: $e');
+            print('Failed to update content language: $e');
           }
         }
+      },
+      selectedColor: AsiazeApp.primaryRed,
+      labelStyle: TextStyle(color: selected ? Colors.white : null),
+    );
+  }
+
+  Widget _appChip(String value, LanguageProvider lang) {
+    final selected = _appLang == value;
+    return ChoiceChip(
+      label: Text(value),
+      selected: selected,
+      onSelected: (_) async {
+        setState(() => _appLang = value);
+        await lang.setLanguage(value);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('appLanguage', value);
       },
       selectedColor: AsiazeApp.primaryRed,
       labelStyle: TextStyle(color: selected ? Colors.white : null),

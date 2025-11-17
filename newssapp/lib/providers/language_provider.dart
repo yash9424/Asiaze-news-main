@@ -3,9 +3,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class LanguageProvider extends ChangeNotifier {
   String _currentLanguage = 'english';
+  String _contentLanguage = 'english';
 
   String get currentLanguage => _currentLanguage;
+  String get contentLanguage => _contentLanguage;
   String get languageCode => _getLanguageCode(_currentLanguage);
+  String get contentLanguageCode => _getLanguageCode(_contentLanguage);
 
   String _getLanguageCode(String lang) {
     switch (lang) {
@@ -25,15 +28,25 @@ class LanguageProvider extends ChangeNotifier {
 
   Future<void> loadLanguage() async {
     final prefs = await SharedPreferences.getInstance();
-    final code = prefs.getString('language') ?? 'EN';
-    _currentLanguage = _getLanguageName(code);
+    final appCode = prefs.getString('appLanguage') ?? 'EN';
+    final contentCode = prefs.getString('contentLanguage') ?? prefs.getString('language') ?? 'EN';
+    _currentLanguage = _getLanguageName(appCode);
+    _contentLanguage = _getLanguageName(contentCode);
     notifyListeners();
   }
 
   Future<void> setLanguage(String code) async {
     _currentLanguage = _getLanguageName(code);
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('language', code);
+    await prefs.setString('appLanguage', code);
+    notifyListeners();
+  }
+
+  Future<void> setContentLanguage(String code) async {
+    _contentLanguage = _getLanguageName(code);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('contentLanguage', code);
+    await prefs.setString('language', code); // Keep for API compatibility
     notifyListeners();
   }
 
@@ -43,16 +56,16 @@ class LanguageProvider extends ChangeNotifier {
 
   String getCategoryLabel(Map<String, dynamic> category) {
     final labels = category['labels'];
-    if (labels != null && labels[_currentLanguage] != null && labels[_currentLanguage].toString().isNotEmpty) {
-      return labels[_currentLanguage].toString();
+    if (labels != null && labels[_contentLanguage] != null && labels[_contentLanguage].toString().isNotEmpty) {
+      return labels[_contentLanguage].toString();
     }
     return category['name']?.toString() ?? '';
   }
 
   String getNewsContent(Map<String, dynamic> news, String field) {
     final translations = news['translations'];
-    if (translations != null && translations[_currentLanguage] != null) {
-      final translated = translations[_currentLanguage][field];
+    if (translations != null && translations[_contentLanguage] != null) {
+      final translated = translations[_contentLanguage][field];
       if (translated != null && translated.toString().isNotEmpty) {
         return translated.toString();
       }
@@ -62,8 +75,8 @@ class LanguageProvider extends ChangeNotifier {
 
   String getReelContent(Map<String, dynamic> reel, String field) {
     final translations = reel['translations'];
-    if (translations != null && translations[_currentLanguage] != null) {
-      final translated = translations[_currentLanguage][field];
+    if (translations != null && translations[_contentLanguage] != null) {
+      final translated = translations[_contentLanguage][field];
       if (translated != null && translated.toString().isNotEmpty) {
         return translated.toString();
       }
@@ -125,4 +138,6 @@ final Map<String, Map<String, String>> _translations = {
   'no_categories': {'english': 'No categories available', 'hindi': 'कोई श्रेणी उपलब्ध नहीं', 'bengali': 'কোন বিভাগ উপলব্ধ নেই'},
   'select_one_interest': {'english': 'Please select at least one interest', 'hindi': 'कृपया कम से कम एक रुचि चुनें', 'bengali': 'অনুগ্রহ করে অন্তত একটি আগ্রহ নির্বাচন করুন'},
   'preferences_updated': {'english': 'Preferences updated!', 'hindi': 'प्राथमिकताएं अपडेट की गईं!', 'bengali': 'পছন্দ আপডেট হয়েছে!'},
+  'content_language': {'english': 'Content Language (News, Stories, Reels)', 'hindi': 'सामग्री भाषा (समाचार, कहानियां, रील)', 'bengali': 'বিষয়বস্তু ভাষা (খবর, গল্প, রিল)'},
+  'app_language': {'english': 'App Language (Interface & Options)', 'hindi': 'ऐप भाषा (इंटरफेस और विकल्प)', 'bengali': 'অ্যাপ ভাষা (ইন্টারফেস এবং বিকল্প)'},
 };
