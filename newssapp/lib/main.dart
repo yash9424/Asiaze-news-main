@@ -4065,6 +4065,155 @@ class _RewardScreenState extends State<RewardScreen> {
     }
   }
 
+  void _showRewardDialog(Map<String, dynamic> reward) {
+    final requiredPoints = reward['points'] ?? 0;
+    final canRedeem = _points >= requiredPoints;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(reward['name'] ?? 'Reward'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (reward['imageUrl'] != null && reward['imageUrl'].toString().isNotEmpty)
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    reward['imageUrl'].toString().startsWith('http') 
+                        ? reward['imageUrl'].toString()
+                        : '${ApiService.baseServerUrl}${reward['imageUrl']}',
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stack) {
+                      return Container(
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.card_giftcard, size: 40),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            const SizedBox(height: 16),
+            Text(reward['description'] ?? 'Redeem this reward'),
+            const SizedBox(height: 16),
+            Text('Required: ${reward['points']} points'),
+            Text('Your points: $_points'),
+            if (!canRedeem)
+              Text(
+                'Insufficient points',
+                style: TextStyle(color: Colors.red),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          if (canRedeem)
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _redeemReward(reward);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: AsiazeApp.primaryRed),
+              child: const Text('Redeem', style: TextStyle(color: Colors.white)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _redeemReward(Map<String, dynamic> reward) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId');
+      
+      if (userId != null && userId.isNotEmpty) {
+        // Deduct points and generate code
+        final requiredPoints = reward['points'] ?? 0;
+        final newBalance = _points - requiredPoints;
+        
+        // Update local balance
+        setState(() {
+          _points = newBalance.toInt();
+        });
+        
+        // Show success with code
+        final code = 'ASZ${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+        _showRedemptionSuccess(reward, code);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Redemption failed: $e')),
+      );
+    }
+  }
+
+  void _showRedemptionSuccess(Map<String, dynamic> reward, String code) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('🎉 Reward Redeemed!'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('${reward['name']} redeemed successfully!'),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Code: $code',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () async {
+                      await Clipboard.setData(ClipboardData(text: code));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Code copied!')),
+                      );
+                    },
+                    icon: const Icon(Icons.copy),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Save this code! It can only be copied once.',
+              style: TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final red = AsiazeApp.primaryRed;
@@ -4176,6 +4325,7 @@ class _RewardScreenState extends State<RewardScreen> {
                       title: r['name'] ?? '',
                       points: 'Required ${r['points']} pts',
                       red: red,
+                      onTap: () => _showRewardDialog(r),
                     );
                   }),
                   const SizedBox(height: 16),
@@ -4199,83 +4349,89 @@ class _RewardCard extends StatelessWidget {
   final String title;
   final String points;
   final Color red;
+  final VoidCallback? onTap;
 
   const _RewardCard({
     required this.imageUrl,
     required this.title,
     required this.points,
     required this.red,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(8),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            child: imageUrl.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      imageUrl,
-                      width: 50,
-                      height: 50,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stack) {
-                        return const Center(
-                          child: Icon(Icons.card_giftcard, size: 24, color: Colors.grey),
-                        );
-                      },
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: imageUrl.isNotEmpty
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        imageUrl,
+                        width: 50,
+                        height: 50,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stack) {
+                          return const Center(
+                            child: Icon(Icons.card_giftcard, size: 24, color: Colors.grey),
+                          );
+                        },
+                      ),
+                    )
+                  : const Center(
+                      child: Icon(Icons.card_giftcard, size: 24, color: Colors.grey),
                     ),
-                  )
-                : const Center(
-                    child: Icon(Icons.card_giftcard, size: 24, color: Colors.grey),
-                  ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  points,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ],
             ),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    points,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: Colors.grey.shade400),
+          ],
+        ),
       ),
     );
   }
