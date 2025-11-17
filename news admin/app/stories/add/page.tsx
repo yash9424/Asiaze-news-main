@@ -4,17 +4,24 @@ import { useState } from 'react'
 import Sidebar from '@/components/Sidebar'
 import { useRouter } from 'next/navigation'
 
+interface MediaItem {
+  id: string
+  type: 'image' | 'video'
+  url: string
+  thumbnail?: string
+}
+
 export default function AddStoryPage() {
+  const [storyName, setStoryName] = useState('')
   const [heading, setHeading] = useState('')
   const [description, setDescription] = useState('')
-  const [mediaType, setMediaType] = useState<'image' | 'video'>('image')
-  const [image, setImage] = useState('')
-  const [videoUrl, setVideoUrl] = useState('')
-  const [thumbnail, setThumbnail] = useState('')
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([])
+  const [currentMediaType, setCurrentMediaType] = useState<'image' | 'video'>('image')
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [showDetails, setShowDetails] = useState(false)
   const [liked, setLiked] = useState(false)
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const router = useRouter()
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -28,7 +35,12 @@ export default function AddStoryPage() {
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: formData })
       const data = await res.json()
-      setImage(data.url)
+      const newMedia: MediaItem = {
+        id: Date.now().toString(),
+        type: 'image',
+        url: data.url
+      }
+      setMediaItems(prev => [...prev, newMedia])
     } catch (err) {
       alert('Failed to upload image')
     } finally {
@@ -47,13 +59,43 @@ export default function AddStoryPage() {
     try {
       const res = await fetch('/api/upload/video', { method: 'POST', body: formData })
       const data = await res.json()
-      setVideoUrl(data.videoUrl)
-      setThumbnail(data.thumbnail)
+      const newMedia: MediaItem = {
+        id: Date.now().toString(),
+        type: 'video',
+        url: data.videoUrl,
+        thumbnail: data.thumbnail
+      }
+      setMediaItems(prev => [...prev, newMedia])
     } catch (err) {
       alert('Failed to upload video')
     } finally {
       setUploading(false)
     }
+  }
+
+  const removeMedia = (id: string) => {
+    setMediaItems(prev => prev.filter(item => item.id !== id))
+  }
+
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+  }
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault()
+    if (draggedIndex === null) return
+    
+    const newItems = [...mediaItems]
+    const draggedItem = newItems[draggedIndex]
+    newItems.splice(draggedIndex, 1)
+    newItems.splice(dropIndex, 0, draggedItem)
+    
+    setMediaItems(newItems)
+    setDraggedIndex(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,11 +107,10 @@ export default function AddStoryPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          storyName,
           heading,
           description,
-          image: mediaType === 'image' ? image : undefined,
-          videoUrl: mediaType === 'video' ? videoUrl : undefined,
-          thumbnail: mediaType === 'video' ? thumbnail : undefined,
+          mediaItems,
         }),
       })
 
@@ -98,6 +139,18 @@ export default function AddStoryPage() {
           <div style={styles.formContainer}>
             <form onSubmit={handleSubmit} style={styles.form}>
               <div style={styles.formGroup}>
+                <label style={styles.label}>Story Name *</label>
+                <input
+                  type="text"
+                  value={storyName}
+                  onChange={(e) => setStoryName(e.target.value)}
+                  required
+                  style={styles.input}
+                  placeholder="Enter story name for layout"
+                />
+              </div>
+
+              <div style={styles.formGroup}>
                 <label style={styles.label}>Heading *</label>
                 <input
                   type="text"
@@ -120,14 +173,14 @@ export default function AddStoryPage() {
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Media Type *</label>
+                <label style={styles.label}>Add Media</label>
                 <div style={{ display: 'flex', gap: '20px', marginBottom: '10px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <input
                       type="radio"
                       value="image"
-                      checked={mediaType === 'image'}
-                      onChange={() => setMediaType('image')}
+                      checked={currentMediaType === 'image'}
+                      onChange={() => setCurrentMediaType('image')}
                     />
                     Image
                   </label>
@@ -135,34 +188,76 @@ export default function AddStoryPage() {
                     <input
                       type="radio"
                       value="video"
-                      checked={mediaType === 'video'}
-                      onChange={() => setMediaType('video')}
+                      checked={currentMediaType === 'video'}
+                      onChange={() => setCurrentMediaType('video')}
                     />
                     Video
                   </label>
                 </div>
+                
+                {currentMediaType === 'image' ? (
+                  <input type="file" accept="image/*" onChange={handleImageUpload} style={styles.input} disabled={uploading} />
+                ) : (
+                  <input type="file" accept="video/*" onChange={handleVideoUpload} style={styles.input} disabled={uploading} />
+                )}
+                
+                {uploading && <p style={{ color: '#e31e3a', fontSize: '14px' }}>Uploading...</p>}
               </div>
 
-              {mediaType === 'image' ? (
+              {mediaItems.length > 0 && (
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Upload Image *</label>
-                  <input type="file" accept="image/*" onChange={handleImageUpload} style={styles.input} disabled={uploading} />
-                  {uploading && <p>Uploading...</p>}
-                  {image && <img src={image} alt="Preview" style={styles.preview} />}
-                </div>
-              ) : (
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Upload Video *</label>
-                  <input type="file" accept="video/*" onChange={handleVideoUpload} style={styles.input} disabled={uploading} />
-                  {uploading && <p>Uploading video...</p>}
-                  {videoUrl && (
-                    <div>
-                      <video src={videoUrl} controls style={styles.preview} />
-                      {thumbnail && <img src={thumbnail} alt="Thumbnail" style={styles.preview} />}
-                    </div>
-                  )}
+                  <label style={styles.label}>Media Items ({mediaItems.length}) - Drag to reorder</label>
+                  <div style={styles.mediaList}>
+                    {mediaItems.map((item, index) => (
+                      <div
+                        key={item.id}
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, index)}
+                        style={{
+                          ...styles.mediaItem,
+                          opacity: draggedIndex === index ? 0.5 : 1
+                        }}
+                      >
+                        <div style={styles.mediaPreview}>
+                          {item.type === 'image' ? (
+                            <img src={item.url} alt="Media" style={styles.mediaThumb} />
+                          ) : (
+                            <video src={item.url} style={styles.mediaThumb} />
+                          )}
+                        </div>
+                        <div style={styles.mediaInfo}>
+                          <span style={styles.mediaType}>{item.type.toUpperCase()}</span>
+                          <span style={styles.mediaOrder}>#{index + 1}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeMedia(item.id)}
+                          style={styles.removeBtn}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  const input = document.createElement('input')
+                  input.type = 'file'
+                  input.accept = currentMediaType === 'image' ? 'image/*' : 'video/*'
+                  input.onchange = currentMediaType === 'image' ? handleImageUpload : handleVideoUpload
+                  input.click()
+                }}
+                disabled={uploading}
+                style={styles.addMoreBtn}
+              >
+                + Add More Media
+              </button>
 
               <button type="submit" disabled={loading || uploading} style={styles.submitBtn}>
                 {loading ? 'Adding...' : 'Add Story'}
@@ -172,10 +267,12 @@ export default function AddStoryPage() {
             <div style={styles.previewContainer}>
               <h3 style={styles.previewTitle}>Preview</h3>
               <div style={styles.phoneFrame}>
-                {mediaType === 'image' && image ? (
-                  <img src={image} alt="Preview" style={styles.previewMedia} />
-                ) : mediaType === 'video' && videoUrl ? (
-                  <video src={videoUrl} style={styles.previewMedia} controls />
+                {mediaItems.length > 0 ? (
+                  mediaItems[0].type === 'image' ? (
+                    <img src={mediaItems[0].url} alt="Preview" style={styles.previewMedia} />
+                  ) : (
+                    <video src={mediaItems[0].url} style={styles.previewMedia} controls />
+                  )
                 ) : (
                   <div style={styles.placeholderMedia}>Upload media to preview</div>
                 )}
@@ -328,4 +425,43 @@ const styles = {
   },
   detailHeading: { fontSize: '18px', fontWeight: '700' as const, marginBottom: '12px', color: 'white', marginTop: '10px' },
   detailDescription: { fontSize: '14px', lineHeight: '1.6', color: 'white' },
+  mediaList: { display: 'flex', flexDirection: 'column' as const, gap: '10px', maxHeight: '300px', overflowY: 'auto' as const },
+  mediaItem: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '10px',
+    border: '1px solid #ddd',
+    borderRadius: '8px',
+    backgroundColor: '#f9f9f9',
+    cursor: 'grab',
+  },
+  mediaPreview: { marginRight: '12px' },
+  mediaThumb: { width: '60px', height: '60px', objectFit: 'cover' as const, borderRadius: '4px' },
+  mediaInfo: { flex: 1, display: 'flex', flexDirection: 'column' as const, gap: '4px' },
+  mediaType: { fontSize: '12px', fontWeight: '600' as const, color: '#666' },
+  mediaOrder: { fontSize: '14px', fontWeight: '700' as const, color: '#e31e3a' },
+  removeBtn: {
+    backgroundColor: '#ff4444',
+    color: 'white',
+    border: 'none',
+    borderRadius: '50%',
+    width: '24px',
+    height: '24px',
+    cursor: 'pointer',
+    fontSize: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addMoreBtn: {
+    backgroundColor: '#28a745',
+    color: 'white',
+    padding: '10px 20px',
+    border: 'none',
+    borderRadius: '5px',
+    fontSize: '14px',
+    fontWeight: '600' as const,
+    cursor: 'pointer',
+    marginBottom: '20px',
+  },
 }

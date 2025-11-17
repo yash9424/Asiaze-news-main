@@ -1985,29 +1985,43 @@ class _TopCircleButton extends StatelessWidget {
   }
 }
 
-// ---------------- Story Screen ----------------
-class StoryScreen extends StatefulWidget {
-  const StoryScreen({super.key});
+// ---------------- Story Grid Screen (Instagram-like) ----------------
+class StoryGridScreen extends StatefulWidget {
+  const StoryGridScreen({super.key});
 
   @override
-  State<StoryScreen> createState() => _StoryScreenState();
+  State<StoryGridScreen> createState() => _StoryGridScreenState();
 }
 
-class _StoryScreenState extends State<StoryScreen> {
-  List<dynamic> _stories = [];
+class _StoryGridScreenState extends State<StoryGridScreen> {
+  Map<String, List<dynamic>> _storiesByCategory = {};
+  List<Map<String, dynamic>> _categories = [];
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchStories();
+    _fetchData();
   }
 
-  Future<void> _fetchStories() async {
+  Future<void> _fetchData() async {
     try {
       final stories = await ApiService.getStories();
+      final categories = await ApiService.getCategories();
+      
+      // Group stories by category
+      final Map<String, List<dynamic>> grouped = {};
+      for (final story in stories) {
+        final categoryId = story['category']?['_id']?.toString() ?? 'uncategorized';
+        if (!grouped.containsKey(categoryId)) {
+          grouped[categoryId] = [];
+        }
+        grouped[categoryId]!.add(story);
+      }
+      
       setState(() {
-        _stories = stories;
+        _storiesByCategory = grouped;
+        _categories = List<Map<String, dynamic>>.from(categories);
         _loading = false;
       });
     } catch (e) {
@@ -2018,91 +2032,156 @@ class _StoryScreenState extends State<StoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_stories.isEmpty) {
-      final lang = Provider.of<LanguageProvider>(context);
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.auto_stories_outlined, size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(lang.translate('no_stories'), style: TextStyle(color: Colors.grey.shade600)),
-          ],
+    final lang = Provider.of<LanguageProvider>(context);
+    
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
         ),
-      );
-    }
-
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.75,
+        title: Text(lang.translate('story')),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0.5,
       ),
-      itemCount: _stories.length,
-      itemBuilder: (context, index) {
-        final story = _stories[index];
-        final imageUrl = story['image'] ?? 'asset:refranceimages/Group (16).png';
-        
-        return GestureDetector(
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => StoryViewerScreen(
-                  stories: _stories,
-                  initialIndex: index,
-                ),
-              ),
-            );
-          },
-          child: Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: imageUrl.startsWith('asset:')
-                      ? Image.asset(
-                          imageUrl.replaceFirst('asset:', ''),
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        )
-                      : Image.network(
-                          imageUrl,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stack) {
-                            return Container(
-                              color: Colors.grey.shade300,
-                              child: Icon(Icons.image, size: 40, color: Colors.grey.shade600),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _storiesByCategory.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.auto_stories_outlined, size: 64, color: Colors.grey.shade400),
+                      const SizedBox(height: 16),
+                      Text(lang.translate('no_stories'), style: TextStyle(color: Colors.grey.shade600)),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _categories.length,
+                  itemBuilder: (context, index) {
+                    final category = _categories[index];
+                    final categoryId = category['_id']?.toString() ?? '';
+                    final categoryStories = _storiesByCategory[categoryId] ?? [];
+                    
+                    if (categoryStories.isEmpty) return const SizedBox.shrink();
+                    
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Text(
+                            lang.getCategoryLabel(category),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                            childAspectRatio: 0.7,
+                          ),
+                          itemCount: categoryStories.length,
+                          itemBuilder: (context, storyIndex) {
+                            final story = categoryStories[storyIndex];
+                            String imageUrl = story['image'] ?? '';
+                            
+                            if (imageUrl.startsWith('/uploads/')) {
+                              imageUrl = '${ApiService.baseServerUrl}$imageUrl';
+                            }
+                            
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => StoryViewerScreen(
+                                      stories: categoryStories,
+                                      initialIndex: storyIndex,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      imageUrl.isEmpty
+                                          ? Container(
+                                              color: Colors.grey.shade200,
+                                              child: Icon(Icons.image, size: 30, color: Colors.grey.shade500),
+                                            )
+                                          : imageUrl.startsWith('asset:')
+                                              ? Image.asset(
+                                                  imageUrl.replaceFirst('asset:', ''),
+                                                  fit: BoxFit.cover,
+                                                )
+                                              : Image.network(
+                                                  imageUrl,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (context, error, stack) {
+                                                    return Container(
+                                                      color: Colors.grey.shade200,
+                                                      child: Icon(Icons.broken_image, size: 30, color: Colors.grey.shade500),
+                                                    );
+                                                  },
+                                                ),
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              Colors.transparent,
+                                              Colors.black.withOpacity(0.7),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        bottom: 8,
+                                        left: 8,
+                                        right: 8,
+                                        child: Text(
+                                          story['heading'] ?? story['title'] ?? 'Story',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             );
                           },
                         ),
+                        const SizedBox(height: 24),
+                      ],
+                    );
+                  },
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(
-                    story['title'] ?? 'Story',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }
@@ -2524,18 +2603,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     children: [
                       GestureDetector(
-                        onTap: () async {
-                          final stories = await ApiService.getStories();
-                          if (stories.isNotEmpty && context.mounted) {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => StoryViewerScreen(
-                                  stories: stories,
-                                  initialIndex: 0,
-                                ),
-                              ),
-                            );
-                          }
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const StoryGridScreen()),
+                          );
                         },
                         child: Container(
                           margin: const EdgeInsets.only(right: 12),
