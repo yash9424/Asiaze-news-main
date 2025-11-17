@@ -11,6 +11,8 @@ export async function GET() {
 export async function POST(req: Request) {
   await dbConnect();
   const body = await req.json();
+  console.log('Received story data:', body);
   const story = await Story.create(body);
+  console.log('Created story:', story);
   return NextResponse.json({ story }, { status: 201 });
 }

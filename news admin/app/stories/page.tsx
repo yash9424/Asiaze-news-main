@@ -5,9 +5,9 @@ import Sidebar from '@/components/Sidebar'
 import Link from 'next/link'
 
 export default function StoriesListPage() {
-  const [stories, setStories] = useState<any[]>([])
+  const [stories, setStories] = useState([])
   const [loading, setLoading] = useState(true)
-  const [viewStory, setViewStory] = useState<any>(null)
+  const [viewStory, setViewStory] = useState(null)
   const [showDetails, setShowDetails] = useState(false)
   const [liked, setLiked] = useState(false)
 
@@ -19,6 +19,7 @@ export default function StoriesListPage() {
     try {
       const res = await fetch('/api/stories')
       const data = await res.json()
+      console.log('Stories data:', data.stories)
       setStories(data.stories || [])
     } catch (err) {
       console.error('Failed to fetch stories:', err)
@@ -27,7 +28,7 @@ export default function StoriesListPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this story?')) return
 
     try {
@@ -43,7 +44,7 @@ export default function StoriesListPage() {
     }
   }
 
-  const toggleActive = async (id: string, currentStatus: boolean) => {
+  const toggleActive = async (id, currentStatus) => {
     try {
       const res = await fetch(`/api/stories/${id}`, {
         method: 'PUT',
@@ -77,7 +78,13 @@ export default function StoriesListPage() {
               {stories.map((story) => (
                 <div key={story._id} style={styles.card}>
                   <div style={styles.imageContainer}>
-                    {story.videoUrl ? (
+                    {story.mediaItems && story.mediaItems.length > 0 ? (
+                      story.mediaItems[0].type === 'video' ? (
+                        <video src={story.mediaItems[0].url} style={styles.image} controls />
+                      ) : (
+                        <img src={story.mediaItems[0].url} alt={story.heading} style={styles.image} />
+                      )
+                    ) : story.videoUrl ? (
                       <video src={story.videoUrl} style={styles.image} controls />
                     ) : story.image ? (
                       <img src={story.image} alt={story.heading} style={styles.image} />
@@ -89,15 +96,36 @@ export default function StoriesListPage() {
                     </button>
                   </div>
                   <div style={styles.cardContent}>
+                    {(story.storyName || story.heading) && (
+                      <div style={styles.storyName}>
+                        {story.storyName || `Story: ${story.heading.substring(0, 20)}...`}
+                      </div>
+                    )}
                     <h3 style={styles.cardTitle}>{story.heading}</h3>
                     <p style={styles.description}>{story.description}</p>
                     <div style={styles.meta}>
-                      <span style={styles.mediaType}>{story.videoUrl ? 'Video' : 'Image'}</span>
+                      <span style={styles.mediaType}>
+                        {story.mediaItems && story.mediaItems.length > 0 
+                          ? `${story.mediaItems.length} ${story.mediaItems.length === 1 ? 'Item' : 'Items'}`
+                          : story.videoUrl ? 'Video' : 'Image'
+                        }
+                      </span>
                       <span style={{
                         ...styles.statusBadge,
                         backgroundColor: story.active ? '#4caf50' : '#f44336'
                       }}>
                         {story.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    <div style={styles.deleteInfo}>
+                      <span style={styles.deleteLabel}>Auto Delete:</span>
+                      <span style={styles.deleteTime}>
+                        {story.autoDeleteType === 'hours' 
+                          ? `In ${story.deleteAfterHours || 24} hours`
+                          : story.autoDeleteType === 'days' && story.deleteAfterDate
+                          ? `On ${new Date(story.deleteAfterDate).toLocaleDateString()}`
+                          : 'Never'
+                        }
                       </span>
                     </div>
                     <div style={styles.actions}>
@@ -179,7 +207,7 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  title: { color: '#e31e3a', fontSize: '24px', margin: 0, fontWeight: '600' as const },
+  title: { color: '#e31e3a', fontSize: '24px', margin: 0, fontWeight: 600 },
   addBtn: {
     backgroundColor: '#e31e3a',
     color: 'white',
@@ -187,15 +215,15 @@ const styles = {
     borderRadius: '5px',
     textDecoration: 'none',
     fontSize: '14px',
-    fontWeight: '600' as const,
+    fontWeight: 600,
   },
   content: { padding: '35px' },
-  loading: { textAlign: 'center' as const, padding: '50px', fontSize: '16px' },
-  empty: { textAlign: 'center' as const, padding: '50px', fontSize: '16px', color: '#666' },
+  loading: { textAlign: 'center', padding: '50px', fontSize: '16px' },
+  empty: { textAlign: 'center', padding: '50px', fontSize: '16px', color: '#666' },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '25px' },
   card: { backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' },
-  imageContainer: { position: 'relative' as const },
-  image: { width: '100%', height: '200px', objectFit: 'cover' as const },
+  imageContainer: { position: 'relative' },
+  image: { width: '100%', height: '200px', objectFit: 'cover' },
   noMedia: { 
     width: '100%', 
     height: '200px', 
@@ -206,7 +234,7 @@ const styles = {
     color: '#666'
   },
   viewBtn: {
-    position: 'absolute' as const,
+    position: 'absolute',
     top: '12px',
     right: '12px',
     backgroundColor: 'rgba(0,0,0,0.7)',
@@ -221,7 +249,17 @@ const styles = {
     justifyContent: 'center',
   },
   cardContent: { padding: '20px' },
-  cardTitle: { fontSize: '18px', fontWeight: '700' as const, marginBottom: '8px', color: '#333' },
+  storyName: { 
+    fontSize: '12px', 
+    fontWeight: 600, 
+    color: '#e31e3a', 
+    backgroundColor: '#fff5f5', 
+    padding: '4px 8px', 
+    borderRadius: '4px', 
+    marginBottom: '8px',
+    display: 'inline-block'
+  },
+  cardTitle: { fontSize: '18px', fontWeight: 700, marginBottom: '8px', color: '#333' },
   description: { 
     fontSize: '14px', 
     color: '#666', 
@@ -229,11 +267,23 @@ const styles = {
     lineHeight: '1.5',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap' as const
+    whiteSpace: 'nowrap'
   },
-  meta: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
+  meta: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' },
   mediaType: { fontSize: '12px', color: '#666', backgroundColor: '#f5f5f5', padding: '4px 8px', borderRadius: '12px' },
-  statusBadge: { fontSize: '11px', color: 'white', padding: '4px 10px', borderRadius: '12px', fontWeight: '600' as const },
+  deleteInfo: { 
+    display: 'flex', 
+    alignItems: 'center', 
+    gap: '8px', 
+    marginBottom: '15px',
+    padding: '8px 12px',
+    backgroundColor: '#fff3cd',
+    borderRadius: '6px',
+    border: '1px solid #ffeaa7'
+  },
+  deleteLabel: { fontSize: '11px', fontWeight: 600, color: '#856404' },
+  deleteTime: { fontSize: '11px', color: '#856404', fontWeight: 500 },
+  statusBadge: { fontSize: '11px', color: 'white', padding: '4px 10px', borderRadius: '12px', fontWeight: 600 },
   actions: { display: 'flex', gap: '8px' },
   editBtn: {
     flex: 1,
@@ -241,10 +291,10 @@ const styles = {
     backgroundColor: '#ff9800',
     color: 'white',
     textDecoration: 'none',
-    textAlign: 'center' as const,
+    textAlign: 'center',
     borderRadius: '6px',
     fontSize: '13px',
-    fontWeight: '600' as const,
+    fontWeight: 600,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -256,7 +306,7 @@ const styles = {
     borderRadius: '6px',
     color: 'white',
     fontSize: '13px',
-    fontWeight: '600' as const,
+    fontWeight: 600,
     cursor: 'pointer',
   },
   deleteBtn: {
@@ -267,11 +317,11 @@ const styles = {
     borderRadius: '6px',
     color: 'white',
     fontSize: '13px',
-    fontWeight: '600' as const,
+    fontWeight: 600,
     cursor: 'pointer',
   },
   modal: {
-    position: 'fixed' as const,
+    position: 'fixed',
     top: 0,
     left: 0,
     right: 0,
@@ -282,9 +332,9 @@ const styles = {
     justifyContent: 'center',
     zIndex: 1000,
   },
-  modalContent: { position: 'relative' as const },
+  modalContent: { position: 'relative' },
   closeBtn: {
-    position: 'absolute' as const,
+    position: 'absolute',
     top: '-40px',
     right: '0',
     background: 'white',
@@ -305,10 +355,10 @@ const styles = {
     backgroundColor: '#000',
     borderRadius: '30px',
     overflow: 'hidden',
-    position: 'relative' as const,
+    position: 'relative',
     boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
   },
-  previewMedia: { width: '100%', height: '100%', objectFit: 'cover' as const },
+  previewMedia: { width: '100%', height: '100%', objectFit: 'cover' },
   placeholderMedia: {
     width: '100%',
     height: '100%',
@@ -320,22 +370,22 @@ const styles = {
     backgroundColor: '#f0f0f0',
   },
   storyOverlay: {
-    position: 'absolute' as const,
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
     background: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, transparent 30%, transparent 60%, rgba(0,0,0,0.5) 100%)',
     display: 'flex',
-    flexDirection: 'column' as const,
+    flexDirection: 'column',
     justifyContent: 'space-between',
     padding: '20px',
-    pointerEvents: 'none' as const,
+    pointerEvents: 'none',
   },
   storyHeader: { display: 'flex', justifyContent: 'center' },
-  storyBrand: { color: 'white', fontSize: '18px', fontWeight: '700' as const, letterSpacing: '1px' },
+  storyBrand: { color: 'white', fontSize: '18px', fontWeight: 700, letterSpacing: '1px' },
   readDetailBtn: {
-    position: 'absolute' as const,
+    position: 'absolute',
     bottom: '20px',
     left: '20px',
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -344,17 +394,17 @@ const styles = {
     padding: '10px 20px',
     borderRadius: '20px',
     fontSize: '13px',
-    fontWeight: '600' as const,
+    fontWeight: 600,
     cursor: 'pointer',
-    pointerEvents: 'auto' as const,
+    pointerEvents: 'auto',
   },
   actionButtons: {
-    position: 'absolute' as const,
+    position: 'absolute',
     bottom: '20px',
     right: '20px',
     display: 'flex',
     gap: '10px',
-    pointerEvents: 'auto' as const,
+    pointerEvents: 'auto',
   },
   actionBtn: {
     backgroundColor: 'transparent',
@@ -365,7 +415,7 @@ const styles = {
     padding: '5px',
   },
   detailsPanel: {
-    position: 'absolute' as const,
+    position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
@@ -374,10 +424,10 @@ const styles = {
     borderTopRightRadius: '20px',
     padding: '25px 20px',
     maxHeight: '70%',
-    overflowY: 'auto' as const,
+    overflowY: 'auto',
   },
   closeDetailsBtn: {
-    position: 'absolute' as const,
+    position: 'absolute',
     top: '10px',
     right: '10px',
     background: 'transparent',
@@ -386,6 +436,6 @@ const styles = {
     cursor: 'pointer',
     color: 'white',
   },
-  detailHeading: { fontSize: '18px', fontWeight: '700' as const, marginBottom: '12px', color: 'white', marginTop: '10px' },
+  detailHeading: { fontSize: '18px', fontWeight: 700, marginBottom: '12px', color: 'white', marginTop: '10px' },
   detailDescription: { fontSize: '14px', lineHeight: '1.6', color: 'white' },
 }

@@ -23,6 +23,9 @@ export default function EditStoryPage() {
   const [liked, setLiked] = useState(false)
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
   const [fetchLoading, setFetchLoading] = useState(true)
+  const [autoDeleteType, setAutoDeleteType] = useState<'never' | 'hours' | 'days'>('never')
+  const [deleteAfterHours, setDeleteAfterHours] = useState(24)
+  const [deleteAfterDate, setDeleteAfterDate] = useState('')
   const router = useRouter()
   const params = useParams()
   const storyId = params.id as string
@@ -74,6 +77,11 @@ export default function EditStoryPage() {
           }
         }
         setMediaItems(existingMedia)
+        
+        // Load auto-delete settings
+        setAutoDeleteType(story.autoDeleteType || 'never')
+        setDeleteAfterHours(story.deleteAfterHours || 24)
+        setDeleteAfterDate(story.deleteAfterDate || '')
       }
     } catch (err) {
       alert('Failed to fetch story')
@@ -158,6 +166,17 @@ export default function EditStoryPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!storyName.trim()) {
+      alert('Please enter a story name')
+      return
+    }
+    
+    if (mediaItems.length === 0) {
+      alert('Please add at least one media item')
+      return
+    }
+    
     setLoading(true)
 
     try {
@@ -169,6 +188,9 @@ export default function EditStoryPage() {
           heading,
           description,
           mediaItems,
+          autoDeleteType,
+          deleteAfterHours: autoDeleteType === 'hours' ? deleteAfterHours : undefined,
+          deleteAfterDate: autoDeleteType === 'days' ? deleteAfterDate : undefined,
         }),
       })
 
@@ -327,6 +349,46 @@ export default function EditStoryPage() {
               >
                 + Add More Media
               </button>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Auto Delete Story</label>
+                <select
+                  value={autoDeleteType}
+                  onChange={(e) => setAutoDeleteType(e.target.value as 'never' | 'hours' | 'days')}
+                  style={styles.input}
+                >
+                  <option value="never">Never</option>
+                  <option value="hours">In Hours</option>
+                  <option value="days">On Specific Date</option>
+                </select>
+              </div>
+
+              {autoDeleteType === 'hours' && (
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Delete After Hours (1-24)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="24"
+                    value={deleteAfterHours}
+                    onChange={(e) => setDeleteAfterHours(parseInt(e.target.value))}
+                    style={styles.input}
+                  />
+                </div>
+              )}
+
+              {autoDeleteType === 'days' && (
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Delete On Date</label>
+                  <input
+                    type="date"
+                    value={deleteAfterDate}
+                    onChange={(e) => setDeleteAfterDate(e.target.value)}
+                    style={styles.input}
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+              )}
 
               <button type="submit" disabled={loading || uploading} style={styles.submitBtn}>
                 {loading ? 'Updating...' : 'Update Story'}
