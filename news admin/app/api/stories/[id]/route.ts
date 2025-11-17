@@ -11,12 +11,20 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 }
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  await dbConnect();
-  const { id } = await params;
-  const body = await req.json();
-  const story = await Story.findByIdAndUpdate(id, body, { new: true });
-  if (!story) return NextResponse.json({ error: 'Story not found' }, { status: 404 });
-  return NextResponse.json({ story });
+  try {
+    await dbConnect();
+    const { id } = await params;
+    const body = await req.json();
+    console.log('Updating story with data:', body);
+    
+    const story = await Story.findByIdAndUpdate(id, body, { new: true, strict: false });
+    console.log('Updated story:', story);
+    if (!story) return NextResponse.json({ error: 'Story not found' }, { status: 404 });
+    return NextResponse.json({ story });
+  } catch (error) {
+    console.error('Error updating story:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {

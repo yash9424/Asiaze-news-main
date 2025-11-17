@@ -38,11 +38,12 @@ export default function EditStoryPage() {
 
   const fetchStory = async () => {
     try {
-      const res = await fetch(`/api/stories/${storyId}`)
+      const res = await fetch(`/api/stories/${storyId}?t=${Date.now()}`)
       const data = await res.json()
       
       if (data.story) {
         const story = data.story
+        console.log('Loaded story data:', story)
         setStoryName(story.storyName || '')
         setHeading(story.heading || '')
         setDescription(story.description || '')
@@ -79,9 +80,18 @@ export default function EditStoryPage() {
         setMediaItems(existingMedia)
         
         // Load auto-delete settings
+        console.log('Loading story auto-delete data:', {
+          autoDeleteType: story.autoDeleteType,
+          deleteAfterHours: story.deleteAfterHours,
+          deleteAfterDate: story.deleteAfterDate
+        })
         setAutoDeleteType(story.autoDeleteType || 'never')
-        setDeleteAfterHours(story.deleteAfterHours || 24)
-        setDeleteAfterDate(story.deleteAfterDate || '')
+        if (story.deleteAfterHours) {
+          setDeleteAfterHours(Number(story.deleteAfterHours))
+        }
+        if (story.deleteAfterDate) {
+          setDeleteAfterDate(story.deleteAfterDate)
+        }
       }
     } catch (err) {
       alert('Failed to fetch story')
@@ -176,31 +186,47 @@ export default function EditStoryPage() {
       alert('Please add at least one media item')
       return
     }
+
+    if (autoDeleteType === 'hours' && (!deleteAfterHours || deleteAfterHours < 1 || deleteAfterHours > 24)) {
+      alert('Please enter valid hours (1-24)')
+      return
+    }
+
+    if (autoDeleteType === 'days' && !deleteAfterDate) {
+      alert('Please select a date for auto-deletion')
+      return
+    }
     
     setLoading(true)
 
     try {
+      const payload = {
+        storyName: storyName.trim(),
+        heading: heading.trim(),
+        description: description.trim(),
+        mediaItems,
+        autoDeleteType,
+        ...(autoDeleteType === 'hours' && { deleteAfterHours: Number(deleteAfterHours) }),
+        ...(autoDeleteType === 'days' && { deleteAfterDate }),
+      }
+      console.log('Updating story data:', payload)
+      
       const res = await fetch(`/api/stories/${storyId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          storyName,
-          heading,
-          description,
-          mediaItems,
-          autoDeleteType,
-          deleteAfterHours: autoDeleteType === 'hours' ? deleteAfterHours : undefined,
-          deleteAfterDate: autoDeleteType === 'days' ? deleteAfterDate : undefined,
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (res.ok) {
         alert('Story updated successfully!')
         router.push('/stories')
       } else {
+        const errorData = await res.json()
+        console.error('Error response:', errorData)
         alert('Failed to update story')
       }
     } catch (err) {
+      console.error('Error updating story:', err)
       alert('Error updating story')
     } finally {
       setLoading(false)
@@ -365,27 +391,29 @@ export default function EditStoryPage() {
 
               {autoDeleteType === 'hours' && (
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Delete After Hours (1-24)</label>
+                  <label style={styles.label}>Delete After Hours (1-24) *</label>
                   <input
                     type="number"
                     min="1"
                     max="24"
                     value={deleteAfterHours}
-                    onChange={(e) => setDeleteAfterHours(parseInt(e.target.value))}
+                    onChange={(e) => setDeleteAfterHours(Number(e.target.value) || 1)}
                     style={styles.input}
+                    required
                   />
                 </div>
               )}
 
               {autoDeleteType === 'days' && (
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Delete On Date</label>
+                  <label style={styles.label}>Delete On Date *</label>
                   <input
                     type="date"
                     value={deleteAfterDate}
                     onChange={(e) => setDeleteAfterDate(e.target.value)}
                     style={styles.input}
                     min={new Date().toISOString().split('T')[0]}
+                    required
                   />
                 </div>
               )}

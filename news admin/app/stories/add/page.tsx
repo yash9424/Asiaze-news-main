@@ -113,18 +113,28 @@ export default function AddStoryPage() {
       alert('Please add at least one media item')
       return
     }
+
+    if (autoDeleteType === 'hours' && (!deleteAfterHours || deleteAfterHours < 1 || deleteAfterHours > 24)) {
+      alert('Please enter valid hours (1-24)')
+      return
+    }
+
+    if (autoDeleteType === 'days' && !deleteAfterDate) {
+      alert('Please select a date for auto-deletion')
+      return
+    }
     
     setLoading(true)
 
     try {
       const payload = {
-        storyName,
-        heading,
-        description,
+        storyName: storyName.trim(),
+        heading: heading.trim(),
+        description: description.trim(),
         mediaItems,
         autoDeleteType,
-        deleteAfterHours: autoDeleteType === 'hours' ? deleteAfterHours : undefined,
-        deleteAfterDate: autoDeleteType === 'days' ? deleteAfterDate : undefined,
+        ...(autoDeleteType === 'hours' && { deleteAfterHours: Number(deleteAfterHours) }),
+        ...(autoDeleteType === 'days' && { deleteAfterDate }),
       }
       console.log('Sending story data:', payload)
       
@@ -138,9 +148,12 @@ export default function AddStoryPage() {
         alert('Story added successfully!')
         router.push('/stories')
       } else {
+        const errorData = await res.json()
+        console.error('Error response:', errorData)
         alert('Failed to add story')
       }
     } catch (err) {
+      console.error('Error adding story:', err)
       alert('Error adding story')
     } finally {
       setLoading(false)
@@ -294,27 +307,29 @@ export default function AddStoryPage() {
 
               {autoDeleteType === 'hours' && (
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Delete After Hours (1-24)</label>
+                  <label style={styles.label}>Delete After Hours (1-24) *</label>
                   <input
                     type="number"
                     min="1"
                     max="24"
                     value={deleteAfterHours}
-                    onChange={(e) => setDeleteAfterHours(parseInt(e.target.value))}
+                    onChange={(e) => setDeleteAfterHours(Number(e.target.value) || 1)}
                     style={styles.input}
+                    required
                   />
                 </div>
               )}
 
               {autoDeleteType === 'days' && (
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Delete On Date</label>
+                  <label style={styles.label}>Delete On Date *</label>
                   <input
                     type="date"
                     value={deleteAfterDate}
                     onChange={(e) => setDeleteAfterDate(e.target.value)}
                     style={styles.input}
                     min={new Date().toISOString().split('T')[0]}
+                    required
                   />
                 </div>
               )}

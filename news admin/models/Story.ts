@@ -1,23 +1,23 @@
 import mongoose from 'mongoose';
 
+// Delete existing model to force schema update
+if (mongoose.models.Story) {
+  delete mongoose.models.Story;
+}
+
 const StorySchema = new mongoose.Schema({
-  storyName: { type: String },
-  heading: { type: String, required: true },
-  description: { type: String, required: true },
-  image: { type: String },
-  videoUrl: { type: String },
-  thumbnail: { type: String },
-  mediaItems: [{
-    id: String,
-    type: { type: String, enum: ['image', 'video'] },
-    url: String,
-    thumbnail: String
-  }],
-  autoDeleteType: { type: String, enum: ['never', 'hours', 'days'], default: 'never' },
-  deleteAfterHours: { type: Number },
-  deleteAfterDate: { type: String },
+  storyName: String,
+  heading: String,
+  description: String,
+  image: String,
+  videoUrl: String,
+  thumbnail: String,
+  mediaItems: [],
+  autoDeleteType: String,
+  deleteAfterHours: Number,
+  deleteAfterDate: String,
   active: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
-});
+}, { strict: false });
 
-export default mongoose.models.Story || mongoose.model('Story', StorySchema);
+export default mongoose.model('Story', StorySchema);
