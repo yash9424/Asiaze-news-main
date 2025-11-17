@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status');
     const category = searchParams.get('category');
     const language = searchParams.get('language');
+    const userState = searchParams.get('userState');
     
     const query: any = {};
     // If status is 'all', show all news (for admin panel)
@@ -29,11 +30,16 @@ export async function GET(req: NextRequest) {
     if (category && category !== 'story') query.category = category;
     if (language) query.languages = language;
 
-    const news = await News.find(query)
+    let news = await News.find(query)
       .populate('category')
       .populate('tags')
       .lean()
       .sort({ publishedAt: -1, createdAt: -1 });
+
+    // If userState is provided, filter to show only that state's news
+    if (userState && userState !== '') {
+      news = news.filter(n => n.state === userState || !n.state || n.state === '');
+    }
 
     return createCorsResponse({ news });
   } catch (error: any) {

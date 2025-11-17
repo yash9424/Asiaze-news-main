@@ -950,7 +950,21 @@ class _SearchScreenState extends State<SearchScreen> {
       final prefs = await SharedPreferences.getInstance();
       final langCode = prefs.getString('language') ?? 'EN';
       final language = langCode == 'HIN' ? 'hindi' : (langCode == 'BEN' ? 'bengali' : 'english');
-      final news = await ApiService.getNews(language: language);
+      
+      // Get user's state for prioritization
+      String? userState;
+      try {
+        final userId = prefs.getString('userId');
+        if (userId != null && userId.isNotEmpty) {
+          final userProfile = await ApiService.getUserProfile(userId);
+          final user = userProfile['user'] ?? userProfile;
+          userState = user['state'];
+        }
+      } catch (e) {
+        print('Could not fetch user state: $e');
+      }
+      
+      final news = await ApiService.getNews(language: language, userState: userState);
       final categories = await ApiService.getCategories();
       
       setState(() {

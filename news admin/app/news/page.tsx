@@ -93,6 +93,7 @@ export default function ManageNewsPage() {
                 <th style={styles.th}></th>
                 <th style={styles.th}>Headline</th>
                 <th style={styles.th}>Category</th>
+                <th style={styles.th}>State</th>
                 <th style={styles.th}>Language</th>
                 <th style={styles.th}>Status</th>
                 <th style={styles.th}>Date Created</th>
@@ -102,11 +103,11 @@ export default function ManageNewsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} style={{ ...styles.td, textAlign: 'center' }}>Loading...</td>
+                  <td colSpan={8} style={{ ...styles.td, textAlign: 'center' }}>Loading...</td>
                 </tr>
               ) : newsData.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ ...styles.td, textAlign: 'center' }}>No news found</td>
+                  <td colSpan={8} style={{ ...styles.td, textAlign: 'center' }}>No news found</td>
                 </tr>
               ) : (
                 newsData.map((news) => {
@@ -128,6 +129,7 @@ export default function ManageNewsPage() {
                           {news.category?.name || 'Uncategorized'}
                         </span>
                       </td>
+                      <td style={styles.td}>{news.state || 'All'}</td>
                       <td style={styles.td}>{availableLanguages.join(', ')}</td>
                       <td style={styles.td}>
                         <span style={{

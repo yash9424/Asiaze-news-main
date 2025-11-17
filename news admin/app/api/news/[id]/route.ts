@@ -64,6 +64,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           category: new (await import('mongoose')).default.Types.ObjectId(data.category),
           tags: tagIds,
           source: data.source,
+          state: data.state,
           publishedAt: data.publishedAt,
           languages: data.languages,
           translations: data.translations,

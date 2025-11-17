@@ -48,7 +48,7 @@ class ApiService {
   }
 
   // Get all news
-  static Future<List<dynamic>> getNews({String? categoryId, String? language}) async {
+  static Future<List<dynamic>> getNews({String? categoryId, String? language, String? userState}) async {
     String url = '$baseUrl/news';
     List<String> params = [];
     if (categoryId != null && categoryId.isNotEmpty) {
@@ -56,6 +56,9 @@ class ApiService {
     }
     if (language != null && language.isNotEmpty) {
       params.add('language=$language');
+    }
+    if (userState != null && userState.isNotEmpty) {
+      params.add('userState=$userState');
     }
     if (params.isNotEmpty) {
       url += '?${params.join('&')}';

@@ -14,6 +14,7 @@ export default function EditUserPage({ params }: any) {
     phone: '',
     role: 'user',
     isActive: true,
+    state: '',
     dateRegistered: ''
   })
   const [loading, setLoading] = useState(true)
@@ -41,6 +42,7 @@ export default function EditUserPage({ params }: any) {
             phone: data.user.phone || '',
             role: data.user.role || 'user',
             isActive: data.user.isActive !== false,
+            state: data.user.state || '',
             dateRegistered: data.user.createdAt ? new Date(data.user.createdAt).toISOString().split('T')[0] : ''
           })
         }
@@ -75,7 +77,8 @@ export default function EditUserPage({ params }: any) {
           email: formData.email,
           phone: formData.phone,
           role: formData.role,
-          isActive: formData.isActive
+          isActive: formData.isActive,
+          state: formData.state
         })
       })
 
@@ -166,6 +169,54 @@ export default function EditUserPage({ params }: any) {
               >
                 <div className={styles.toggleCircle}></div>
               </div>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label className={styles.label}>State</label>
+              <select
+                name="state"
+                value={formData.state}
+                onChange={handleChange}
+                className={styles.select}
+              >
+                <option value="">Select State</option>
+                <option value="Andhra Pradesh">Andhra Pradesh</option>
+                <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+                <option value="Assam">Assam</option>
+                <option value="Bihar">Bihar</option>
+                <option value="Chhattisgarh">Chhattisgarh</option>
+                <option value="Goa">Goa</option>
+                <option value="Gujarat">Gujarat</option>
+                <option value="Haryana">Haryana</option>
+                <option value="Himachal Pradesh">Himachal Pradesh</option>
+                <option value="Jharkhand">Jharkhand</option>
+                <option value="Karnataka">Karnataka</option>
+                <option value="Kerala">Kerala</option>
+                <option value="Madhya Pradesh">Madhya Pradesh</option>
+                <option value="Maharashtra">Maharashtra</option>
+                <option value="Manipur">Manipur</option>
+                <option value="Meghalaya">Meghalaya</option>
+                <option value="Mizoram">Mizoram</option>
+                <option value="Nagaland">Nagaland</option>
+                <option value="Odisha">Odisha</option>
+                <option value="Punjab">Punjab</option>
+                <option value="Rajasthan">Rajasthan</option>
+                <option value="Sikkim">Sikkim</option>
+                <option value="Tamil Nadu">Tamil Nadu</option>
+                <option value="Telangana">Telangana</option>
+                <option value="Tripura">Tripura</option>
+                <option value="Uttar Pradesh">Uttar Pradesh</option>
+                <option value="Uttarakhand">Uttarakhand</option>
+                <option value="West Bengal">West Bengal</option>
+                <option value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</option>
+                <option value="Chandigarh">Chandigarh</option>
+                <option value="Dadra & Nagar Haveli and Daman & Diu">Dadra & Nagar Haveli and Daman & Diu</option>
+                <option value="Delhi (NCT of Delhi)">Delhi (NCT of Delhi)</option>
+                <option value="Jammu & Kashmir">Jammu & Kashmir</option>
+                <option value="Ladakh">Ladakh</option>
+                <option value="Lakshadweep">Lakshadweep</option>
+                <option value="Puducherry">Puducherry</option>
+              </select>
             </div>
 
             <div className={styles.formGroup}>

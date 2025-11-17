@@ -78,6 +78,9 @@ export default function ViewNewsPage({ params }: { params: Promise<{ id: string 
             <div className={styles.metaTitle}>Source</div>
             <div className={styles.metaItem}>{newsData.source || 'N/A'}</div>
 
+            <div className={styles.metaTitle}>State</div>
+            <div className={styles.metaItem}>{newsData.state || 'All'}</div>
+
             <div className={styles.metaTitle}>Status</div>
             <div className={styles.metaItem}>{newsData.status}</div>
 

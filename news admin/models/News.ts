@@ -15,6 +15,7 @@ const NewsSchema = new mongoose.Schema({
   languages: [{ type: String }],
   translations: { type: mongoose.Schema.Types.Mixed },
   source: { type: String },
+  state: { type: String },
   publishedAt: { type: Date },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
