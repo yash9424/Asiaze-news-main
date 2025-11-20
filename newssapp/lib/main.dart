@@ -99,7 +99,15 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
     
     if (isLoggedIn) {
-      Navigator.of(context).pushReplacementNamed(MainNav.routeName);
+      // Check if user has completed preferences
+      final hasPreferences = prefs.getString('language') != null && 
+                            (prefs.getStringList('interests')?.isNotEmpty ?? false);
+      
+      if (hasPreferences) {
+        Navigator.of(context).pushReplacementNamed(MainNav.routeName);
+      } else {
+        Navigator.of(context).pushReplacementNamed(PreferencesScreen.routeName);
+      }
     } else if (seenOnboarding) {
       Navigator.of(context).pushReplacementNamed(LoginScreen.routeName);
     } else {
@@ -444,16 +452,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               const SnackBar(content: Text('Login successful!')),
                             );
                             
-                            // Check if preferences already set
-                            final language = prefs.getString('language');
-                            final interests = prefs.getStringList('interests');
-                            final hasPreferences = language != null && interests != null && interests.isNotEmpty;
-                            
-                            if (hasPreferences) {
-                              Navigator.of(context).pushReplacementNamed(MainNav.routeName);
-                            } else {
-                              Navigator.of(context).pushReplacementNamed(PreferencesScreen.routeName);
-                            }
+                            // For existing users, go directly to home
+                            Navigator.of(context).pushReplacementNamed(MainNav.routeName);
                           } catch (e) {
                             if (!mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -615,18 +615,11 @@ class _VerifyScreenState extends State<VerifyScreen> {
                         if (code == '123456') {
                           final prefs = await SharedPreferences.getInstance();
                           await prefs.setBool('isLoggedIn', true);
+                          await prefs.setBool('isNewUser', true); // Mark as new user
                           if (!mounted) return;
                           
-                          // Check if preferences already set
-                          final language = prefs.getString('language');
-                          final interests = prefs.getStringList('interests');
-                          final hasPreferences = language != null && interests != null && interests.isNotEmpty;
-                          
-                          if (hasPreferences) {
-                            Navigator.of(context).pushReplacementNamed(MainNav.routeName);
-                          } else {
-                            Navigator.of(context).pushReplacementNamed(PreferencesScreen.routeName);
-                          }
+                          // After verification, go to preferences for new users
+                          Navigator.of(context).pushReplacementNamed(PreferencesScreen.routeName);
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Invalid OTP! Use 123456')),
@@ -1264,7 +1257,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title: Text(Provider.of<LanguageProvider>(context).translate('profile')),
+        title: Text(
+          Provider.of<LanguageProvider>(context).translate('profile'),
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0.5,
@@ -2052,7 +2048,10 @@ class _StoryGridScreenState extends State<StoryGridScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(lang.translate('story')),
+        title: const Text(
+          'Stories',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
         centerTitle: true,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
@@ -2093,17 +2092,6 @@ class _StoryGridScreenState extends State<StoryGridScreen> {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: Text(
-                            categoryName,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ),
                             GridView.builder(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
@@ -2113,7 +2101,7 @@ class _StoryGridScreenState extends State<StoryGridScreen> {
                                 mainAxisSpacing: 12,
                                 childAspectRatio: 0.8,
                               ),
-                              itemCount: categoryStories.length > 4 ? 4 : categoryStories.length,
+                              itemCount: categoryStories.length,
                               itemBuilder: (context, storyIndex) {
                                 final story = categoryStories[storyIndex];
                                 
@@ -2762,9 +2750,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               const Icon(Icons.auto_stories, color: Colors.white, size: 16),
                               const SizedBox(width: 4),
-                              Text(
-                                lang.translate('story'),
-                                style: const TextStyle(
+                              const Text(
+                                'Stories',
+                                style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w700,
                                   fontSize: 14,
@@ -4629,6 +4617,12 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 8),
+              const Text(
+                'Welcome! Let\'s personalize your news experience',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black87),
+              ),
+              const SizedBox(height: 16),
               Text(
                 lang.translate('choose_language'),
                 textAlign: TextAlign.center,
@@ -4694,6 +4688,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                       await prefs.setString('language', _lang);
                       await prefs.setStringList('interests', _selected.toList());
                       await prefs.setStringList('categoryIds', selectedIds);
+                      await prefs.remove('isNewUser'); // Clear new user flag
                       
                       print('Saved preferences - Language: $_lang, Interests: ${_selected.toList()}, IDs: $selectedIds');
                       
