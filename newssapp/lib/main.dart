@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'services/api_service.dart';
+import 'services/google_auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'category_preferences_screen.dart';
 import 'providers/language_provider.dart';
@@ -486,8 +487,57 @@ class _LoginScreenState extends State<LoginScreen> {
                             borderRadius: BorderRadius.circular(24),
                           ),
                         ),
-                        onPressed: () {},
-                        child: const Text('Google'),
+                        onPressed: () async {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Opening Google Sign-In...')),
+                          );
+                          
+                          final account = await GoogleAuthService.signIn();
+                          if (account != null) {
+                            try {
+                              final result = await ApiService.googleSignIn(
+                                account.email,
+                                account.displayName ?? '',
+                                account.id,
+                                '', // State will be updated in profile
+                              );
+                              
+                              final prefs = await SharedPreferences.getInstance();
+                              await prefs.setBool('isLoggedIn', true);
+                              final user = result['user'];
+                              final userId = user['_id']?.toString() ?? user['id']?.toString() ?? '';
+                              await prefs.setString('userId', userId);
+                              await prefs.setString('userName', user['name'].toString());
+                              await prefs.setString('userEmail', user['email'].toString());
+                              
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Google sign-in successful!')),
+                              );
+                              Navigator.of(context).pushReplacementNamed(MainNav.routeName);
+                            } catch (e) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Sign-in failed: Please try again')),
+                              );
+                            }
+                          } else {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(
+                                kIsWeb ? 'Google Sign-In not available on web. Use email signup.' : 'Google sign-in cancelled or failed'
+                              )),
+                            );
+                          }
+                        },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.g_mobiledata),
+                            SizedBox(width: 8),
+                            Text('Continue with Google'),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -661,6 +711,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   String? _selectedState;
   bool _obscure = true;
   bool _loading = false;
+  bool _isGoogleSignUp = false;
 
   final List<String> _indianStates = [
     // States (28)
@@ -724,20 +775,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         hintText: 'Email or Phone',
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    const Text('Password'),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _passCtrl,
-                      obscureText: _obscure,
-                      decoration: InputDecoration(
-                        hintText: 'Password',
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
-                          onPressed: () => setState(() => _obscure = !_obscure),
+                    if (!_isGoogleSignUp) ...[
+                      const SizedBox(height: 16),
+                      const Text('Password'),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _passCtrl,
+                        obscureText: _obscure,
+                        decoration: InputDecoration(
+                          hintText: 'Password',
+                          suffixIcon: IconButton(
+                            icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
+                            onPressed: () => setState(() => _obscure = !_obscure),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                     const SizedBox(height: 16),
                     const Text('State'),
                     const SizedBox(height: 8),
@@ -771,35 +824,75 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                         ),
                         onPressed: _loading ? null : () async {
-                          if (_nameCtrl.text.isEmpty || _emailCtrl.text.isEmpty || _passCtrl.text.isEmpty || _selectedState == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Please fill all fields')),
-                            );
-                            return;
-                          }
+                          if (_isGoogleSignUp) {
+                            // Google Sign-Up flow
+                            if (_selectedState == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Please select your state')),
+                              );
+                              return;
+                            }
 
-                          setState(() => _loading = true);
+                            setState(() => _loading = true);
 
-                          try {
-                            await ApiService.signUp(
-                              _nameCtrl.text,
-                              _emailCtrl.text,
-                              _passCtrl.text,
-                              _selectedState!,
-                            );
-                            
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Sign up successful! Verify OTP')),
-                            );
-                            Navigator.of(context).pushNamed(VerifyScreen.routeName);
-                          } catch (e) {
-                            if (!mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-                            );
-                          } finally {
-                            if (mounted) setState(() => _loading = false);
+                            try {
+                              final result = await ApiService.googleSignIn(
+                                _emailCtrl.text,
+                                _nameCtrl.text,
+                                'google_${_emailCtrl.text}',
+                                _selectedState!,
+                              );
+                              
+                              final prefs = await SharedPreferences.getInstance();
+                              await prefs.setBool('isLoggedIn', true);
+                              final user = result['user'];
+                              final userId = user['_id']?.toString() ?? user['id']?.toString() ?? '';
+                              await prefs.setString('userId', userId);
+                              await prefs.setString('userName', user['name'].toString());
+                              await prefs.setString('userEmail', user['email'].toString());
+                              
+                              if (!mounted) return;
+                              Navigator.of(context).pushReplacementNamed(PreferencesScreen.routeName);
+                            } catch (e) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+                              );
+                            } finally {
+                              if (mounted) setState(() => _loading = false);
+                            }
+                          } else {
+                            // Regular Sign-Up flow
+                            if (_nameCtrl.text.isEmpty || _emailCtrl.text.isEmpty || _passCtrl.text.isEmpty || _selectedState == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Please fill all fields')),
+                              );
+                              return;
+                            }
+
+                            setState(() => _loading = true);
+
+                            try {
+                              await ApiService.signUp(
+                                _nameCtrl.text,
+                                _emailCtrl.text,
+                                _passCtrl.text,
+                                _selectedState!,
+                              );
+                              
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Sign up successful! Verify OTP')),
+                              );
+                              Navigator.of(context).pushNamed(VerifyScreen.routeName);
+                            } catch (e) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+                              );
+                            } finally {
+                              if (mounted) setState(() => _loading = false);
+                            }
                           }
                         },
                         child: Text(_loading ? 'Signing Up...' : 'Sign Up'),
@@ -825,8 +918,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             borderRadius: BorderRadius.circular(24),
                           ),
                         ),
-                        onPressed: () {},
-                        child: const Text('Google'),
+                        onPressed: () async {
+                          final account = await GoogleAuthService.signIn();
+                          if (account != null) {
+                            setState(() {
+                              _isGoogleSignUp = true;
+                              _nameCtrl.text = account.displayName ?? '';
+                              _emailCtrl.text = account.email;
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Google account connected! Please select your state.')),
+                            );
+                          }
+                        },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.g_mobiledata),
+                            SizedBox(width: 8),
+                            Text('Continue with Google'),
+                          ],
+                        ),
                       ),
                     ),
                   ],

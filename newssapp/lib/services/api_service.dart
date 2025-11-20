@@ -185,4 +185,24 @@ class ApiService {
       throw Exception('Failed to update user profile: ${response.body}');
     }
   }
+
+  // Google Sign-In
+  static Future<Map<String, dynamic>> googleSignIn(String email, String name, String googleId, String state) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/users/google-login'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': email,
+        'name': name,
+        'googleId': googleId,
+        'state': state,
+      }),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Google sign-in failed: ${response.body}');
+    }
+  }
 }
