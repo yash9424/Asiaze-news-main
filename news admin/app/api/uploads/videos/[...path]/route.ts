@@ -12,7 +12,7 @@ export async function GET(
     
     const file = await readFile(filePath);
     
-    return new NextResponse(file, {
+    return new NextResponse(new Uint8Array(file), {
       headers: {
         'Content-Type': 'video/mp4',
         'Accept-Ranges': 'bytes',

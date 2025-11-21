@@ -52,6 +52,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
     
     const db = (await import('mongoose')).default.connection.db;
+    if (!db) throw new Error('Database connection not established');
     const result = await db.collection('news').updateOne(
       { _id: new (await import('mongoose')).default.Types.ObjectId(id) },
       {

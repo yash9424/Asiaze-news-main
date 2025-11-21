@@ -19,8 +19,8 @@ async function dbConnect() {
 
   if (!cached.promise) {
     cached.promise = mongoose.connect(MONGODB_URI).then((mongoose) => {
-      return mongoose;
-    });
+      return { conn: mongoose, promise: null };
+    }) as any;
   }
 
   cached.conn = await cached.promise;

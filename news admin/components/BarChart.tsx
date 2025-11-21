@@ -1,4 +1,9 @@
-export default function BarChart() {
+interface BarChartProps {
+  newsData: number[];
+  reelsData: number[];
+}
+
+export default function BarChart({ newsData, reelsData }: BarChartProps) {
   const bars = [
     { red: 70, gray: 50 },
     { red: 90, gray: 60 },

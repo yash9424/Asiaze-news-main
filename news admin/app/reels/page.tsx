@@ -120,6 +120,8 @@ export default function ManageReelsPage() {
       tags: ['Tag1', 'Tag2', 'Tag3'],
       sourceName: '',
       duration: '',
+      videoUrl: '',
+      thumbnail: '',
       featured: true,
       enableComments: true
     })

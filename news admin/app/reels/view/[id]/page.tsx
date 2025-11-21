@@ -49,7 +49,7 @@ export default function ViewReelPage({ params }: { params: Promise<{ id: string 
     videoRef.current.currentTime = percentage * duration
   }
 
-  const handleProgressMouseDown = (e: React.MouseEvent) => {
+  const handleProgressMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     setIsDragging(true)
     setShowScrubber(true)
     handleProgressClick(e)

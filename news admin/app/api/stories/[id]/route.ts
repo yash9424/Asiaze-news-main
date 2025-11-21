@@ -21,7 +21,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     console.log('Updated story:', story);
     if (!story) return NextResponse.json({ error: 'Story not found' }, { status: 404 });
     return NextResponse.json({ story });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating story:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

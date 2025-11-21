@@ -3,11 +3,11 @@ import { MongoClient, GridFSBucket, ObjectId } from 'mongodb';
 
 const uri = process.env.MONGODB_URI || '';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   let client: MongoClient | null = null;
   
   try {
-    const { id } = params;
+    const { id } = await params;
     
     client = await MongoClient.connect(uri);
     const db = client.db();

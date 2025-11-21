@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
+  let text = '';
   try {
-    const { text, targetLang } = await req.json();
+    const body = await req.json();
+    text = body.text;
+    const targetLang = body.targetLang;
 
     if (!text || !targetLang || text.trim() === '') {
       return NextResponse.json({ translatedText: text || '' });

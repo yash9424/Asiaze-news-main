@@ -283,7 +283,10 @@ export default function AddStoryPage() {
                   const input = document.createElement('input')
                   input.type = 'file'
                   input.accept = currentMediaType === 'image' ? 'image/*' : 'video/*'
-                  input.onchange = currentMediaType === 'image' ? handleImageUpload : handleVideoUpload
+                  input.onchange = (e) => {
+                    const handler = currentMediaType === 'image' ? handleImageUpload : handleVideoUpload
+                    handler(e as any)
+                  }
                   input.click()
                 }}
                 disabled={uploading}

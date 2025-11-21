@@ -5,9 +5,9 @@ import Sidebar from '@/components/Sidebar'
 import Link from 'next/link'
 
 export default function StoriesListPage() {
-  const [stories, setStories] = useState([])
+  const [stories, setStories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [viewStory, setViewStory] = useState(null)
+  const [viewStory, setViewStory] = useState<any>(null)
   const [showDetails, setShowDetails] = useState(false)
   const [liked, setLiked] = useState(false)
 
@@ -28,7 +28,7 @@ export default function StoriesListPage() {
     }
   }
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this story?')) return
 
     try {
@@ -44,7 +44,7 @@ export default function StoriesListPage() {
     }
   }
 
-  const toggleActive = async (id, currentStatus) => {
+  const toggleActive = async (id: string, currentStatus: boolean) => {
     try {
       const res = await fetch(`/api/stories/${id}`, {
         method: 'PUT',
@@ -156,7 +156,7 @@ export default function StoriesListPage() {
           )}
         </div>
 
-        {viewStory && <StoryViewer story={viewStory} onClose={() => { setViewStory(null); setShowDetails(false); setLiked(false); }} />}
+
       </div>
     </div>
   )
@@ -184,12 +184,12 @@ const styles = {
     fontWeight: 600,
   },
   content: { padding: '35px' },
-  loading: { textAlign: 'center', padding: '50px', fontSize: '16px' },
-  empty: { textAlign: 'center', padding: '50px', fontSize: '16px', color: '#666' },
+  loading: { textAlign: 'center' as const, padding: '50px', fontSize: '16px' },
+  empty: { textAlign: 'center' as const, padding: '50px', fontSize: '16px', color: '#666' },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '25px' },
   card: { backgroundColor: 'white', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' },
-  imageContainer: { position: 'relative' },
-  image: { width: '100%', height: '200px', objectFit: 'cover' },
+  imageContainer: { position: 'relative' as const },
+  image: { width: '100%', height: '200px', objectFit: 'cover' as const },
   noMedia: { 
     width: '100%', 
     height: '200px', 
@@ -200,7 +200,7 @@ const styles = {
     color: '#666'
   },
   viewBtn: {
-    position: 'absolute',
+    position: 'absolute' as const,
     top: '12px',
     right: '12px',
     backgroundColor: 'rgba(0,0,0,0.7)',
@@ -257,7 +257,7 @@ const styles = {
     backgroundColor: '#ff9800',
     color: 'white',
     textDecoration: 'none',
-    textAlign: 'center',
+    textAlign: 'center' as const,
     borderRadius: '6px',
     fontSize: '13px',
     fontWeight: 600,
@@ -287,7 +287,7 @@ const styles = {
     cursor: 'pointer',
   },
   modal: {
-    position: 'fixed',
+    position: 'fixed' as const,
     top: 0,
     left: 0,
     right: 0,
@@ -298,9 +298,9 @@ const styles = {
     justifyContent: 'center',
     zIndex: 1000,
   },
-  modalContent: { position: 'relative' },
+  modalContent: { position: 'relative' as const },
   closeBtn: {
-    position: 'absolute',
+    position: 'absolute' as const,
     top: '-40px',
     right: '0',
     background: 'white',
@@ -321,10 +321,10 @@ const styles = {
     backgroundColor: '#000',
     borderRadius: '30px',
     overflow: 'hidden',
-    position: 'relative',
+    position: 'relative' as const,
     boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
   },
-  previewMedia: { width: '100%', height: '100%', objectFit: 'cover' },
+  previewMedia: { width: '100%', height: '100%', objectFit: 'cover' as const },
   placeholderMedia: {
     width: '100%',
     height: '100%',
@@ -336,7 +336,7 @@ const styles = {
     backgroundColor: '#f0f0f0',
   },
   storyOverlay: {
-    position: 'absolute',
+    position: 'absolute' as const,
     top: 0,
     left: 0,
     right: 0,
@@ -351,7 +351,7 @@ const styles = {
   storyHeader: { display: 'flex', justifyContent: 'center' },
   storyBrand: { color: 'white', fontSize: '18px', fontWeight: 700, letterSpacing: '1px' },
   readDetailBtn: {
-    position: 'absolute',
+    position: 'absolute' as const,
     bottom: '20px',
     left: '20px',
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -365,7 +365,7 @@ const styles = {
     pointerEvents: 'auto',
   },
   actionButtons: {
-    position: 'absolute',
+    position: 'absolute' as const,
     bottom: '20px',
     right: '20px',
     display: 'flex',
@@ -381,7 +381,7 @@ const styles = {
     padding: '5px',
   },
   detailsPanel: {
-    position: 'absolute',
+    position: 'absolute' as const,
     bottom: 0,
     left: 0,
     right: 0,
@@ -393,7 +393,7 @@ const styles = {
     overflowY: 'auto',
   },
   closeDetailsBtn: {
-    position: 'absolute',
+    position: 'absolute' as const,
     top: '10px',
     right: '10px',
     background: 'transparent',

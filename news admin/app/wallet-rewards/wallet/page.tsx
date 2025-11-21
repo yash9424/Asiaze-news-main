@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import styles from './wallet.module.css';
 
 export default function WalletManagement() {
-  const [wallets, setWallets] = useState([]);
+  const [wallets, setWallets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showAdjustModal, setShowAdjustModal] = useState(false);

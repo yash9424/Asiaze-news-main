@@ -48,8 +48,8 @@ export default function EditReelPage({ params }: { params: Promise<{ id: string 
         duration: reel.duration || '',
         videoUrl: reel.videoUrl || '',
         thumbnail: reel.thumbnail || '',
-        videoFile: '',
-        thumbnailFile: '',
+        videoPreview: '',
+        thumbnailPreview: '',
         featured: reel.featured || false,
         enableComments: reel.enableComments !== false
       })

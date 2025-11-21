@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import styles from './rewards.module.css';
 
 export default function RewardManagement() {
-  const [rewards, setRewards] = useState([]);
+  const [rewards, setRewards] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingReward, setEditingReward] = useState<any>(null);
