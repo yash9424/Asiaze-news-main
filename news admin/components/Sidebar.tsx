@@ -128,20 +128,18 @@ export default function Sidebar() {
           </div>
         )}
 
-        {hasAccess('ads') && (
-          <div>
-            <div style={styles.menuItem}>
-              <Link href="/ads" style={styles.menuText}>Ads Management</Link>
-              <span style={styles.arrow} onClick={() => setAdsOpen(!adsOpen)}>{adsOpen ? '▼' : '▶'}</span>
-            </div>
-            {adsOpen && (
-              <div style={styles.submenu}>
-                <Link href="/ads/add" style={styles.submenuItem}>Add Advertisement</Link>
-                <Link href="/ads/manage" style={styles.submenuItem}>Manage Advertisements</Link>
-              </div>
-            )}
+        <div>
+          <div style={styles.menuItem}>
+            <Link href="/ads" style={styles.menuText}>Ads Management</Link>
+            <span style={styles.arrow} onClick={() => setAdsOpen(!adsOpen)}>{adsOpen ? '▼' : '▶'}</span>
           </div>
-        )}
+          {adsOpen && (
+            <div style={styles.submenu}>
+              <Link href="/ads/add" style={styles.submenuItem}>Add Advertisement</Link>
+              <Link href="/ads/manage" style={styles.submenuItem}>Manage Advertisements</Link>
+            </div>
+          )}
+        </div>
 
         {hasAccess('analytics') && <Link href="/reports" style={styles.singleMenuItem}>Reports / Analytics</Link>}
         <Link href="/settings" style={styles.singleMenuItem}>Setting</Link>

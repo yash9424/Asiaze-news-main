@@ -12,7 +12,6 @@ export default function DashboardPage() {
   const [newsEngagement, setNewsEngagement] = useState<number[]>([])
   const [reelsEngagement, setReelsEngagement] = useState<number[]>([])
   const [loading, setLoading] = useState(true)
-
   useEffect(() => {
     fetchDashboardData()
   }, [])
@@ -86,11 +85,11 @@ export default function DashboardPage() {
 
           <div style={styles.chartsGrid}>
             <div style={styles.chartCard}>
-              <h3 style={styles.chartTitle}>Daily Active Users</h3>
+              <h3 style={styles.chartTitle}>Active Users</h3>
               <LineChart data={stats.users} />
             </div>
             <div style={styles.chartCard}>
-              <h3 style={styles.chartTitle}>Article/Video Engagement</h3>
+              <h3 style={styles.chartTitle}>Content Views</h3>
               <BarChart newsData={newsEngagement} reelsData={reelsEngagement} />
             </div>
           </div>
