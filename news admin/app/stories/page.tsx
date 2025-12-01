@@ -117,12 +117,7 @@ export default function StoriesListPage() {
                         {story.active ? 'Active' : 'Inactive'}
                       </span>
                     </div>
-                    <div style={{fontSize: '10px', color: '#666', marginBottom: '10px', wordBreak: 'break-all'}}>
-                      <strong>Debug Data:</strong><br/>
-                      MediaItems: {JSON.stringify(story.mediaItems)}<br/>
-                      StoryName: {story.storyName}<br/>
-                      AutoDelete: {story.autoDeleteType} - {story.deleteAfterHours}h - {story.deleteAfterDate}
-                    </div>
+
                     <div style={styles.deleteInfo}>
                       <span style={styles.deleteLabel}>Auto Delete:</span>
                       <span style={styles.deleteTime}>
