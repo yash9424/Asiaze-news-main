@@ -12,6 +12,7 @@ async function createAdmin() {
   }
   
   console.log('📡 Connecting to MongoDB...');
+  console.log('🔗 URI:', uri.replace(/:\/\/([^:]+):([^@]+)@/, '://$1:****@'));
   const client = new MongoClient(uri);
   
   try {
