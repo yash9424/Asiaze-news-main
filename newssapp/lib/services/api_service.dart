@@ -205,4 +205,24 @@ class ApiService {
       throw Exception('Google sign-in failed: ${response.body}');
     }
   }
+
+  // Facebook Sign-In
+  static Future<Map<String, dynamic>> facebookSignIn(String email, String name, String facebookId, String state) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/users/facebook-login'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': email,
+        'name': name,
+        'facebookId': facebookId,
+        'state': state,
+      }),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Facebook sign-in failed: ${response.body}');
+    }
+  }
 }

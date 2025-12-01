@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="default_web_client_id">594850747462-r242l9u5bd3nsf8nd0gp0vrprlc1iq56.apps.googleusercontent.com</string>
+    <string name="app_name">newssapp</string>
+    <string name="facebook_app_id">741961928192956</string>
+    <string name="fb_login_protocol_scheme">fb741961928192956</string>
 </resources>

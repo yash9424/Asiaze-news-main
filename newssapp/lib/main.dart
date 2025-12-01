@@ -9,6 +9,9 @@ import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'services/api_service.dart';
 import 'services/google_auth_service.dart';
+import 'services/facebook_auth_service.dart';
+import 'test_facebook.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'category_preferences_screen.dart';
 import 'providers/language_provider.dart';
@@ -35,6 +38,17 @@ String formatPublishedDate(dynamic date) {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Facebook SDK
+  try {
+    print('🔵 Initializing Facebook SDK...');
+    // The SDK should auto-initialize, but let's check status
+    final isInitialized = await FacebookAuth.instance.isWebSdkInitialized;
+    print('🔵 Facebook SDK initialized: $isInitialized');
+  } catch (e) {
+    print('🔴 Facebook SDK initialization error: $e');
+  }
+  
   final languageProvider = LanguageProvider();
   await languageProvider.loadLanguage();
   runApp(ChangeNotifierProvider.value(
@@ -540,12 +554,106 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 48,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                        onPressed: () async {
+                          print('🔵 Facebook login button pressed');
+                          
+                          try {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Opening Facebook Sign-In...')),
+                            );
+                            
+                            final account = await FacebookAuthService.signIn();
+                            print('🔵 Facebook account result: $account');
+                            
+                            if (account != null) {
+                              if (account.email.isEmpty) {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Facebook account has no email. Please use email signup.')),
+                                );
+                                return;
+                              }
+                              
+                              try {
+                                print('🔵 Calling Facebook API with: ${account.email}, ${account.name}');
+                                final result = await ApiService.facebookSignIn(
+                                  account.email,
+                                  account.name,
+                                  account.id,
+                                  '',
+                                );
+                                
+                                final prefs = await SharedPreferences.getInstance();
+                                await prefs.setBool('isLoggedIn', true);
+                                final user = result['user'];
+                                final userId = user['_id']?.toString() ?? user['id']?.toString() ?? '';
+                                await prefs.setString('userId', userId);
+                                await prefs.setString('userName', user['name'].toString());
+                                await prefs.setString('userEmail', user['email'].toString());
+                                
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Facebook login successful!')),
+                                );
+                                Navigator.of(context).pushReplacementNamed(MainNav.routeName);
+                              } catch (e) {
+                                print('🔴 API call failed: $e');
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Login failed: Please try again')),
+                                );
+                              }
+                            } else {
+                              print('🔵 Facebook login returned null');
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Facebook login cancelled or failed')),
+                              );
+                            }
+                          } catch (e) {
+                            print('🔴 Facebook button error: $e');
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Facebook login error. Please try again.')),
+                            );
+                          }
+                        },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.facebook, color: Colors.blue),
+                            SizedBox(width: 8),
+                            Text('Continue with Facebook'),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24.0),
+              padding: const EdgeInsets.symmetric(vertical: 12.0),
+              child: TextButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const FacebookTestScreen()),
+                  );
+                },
+                child: const Text('Debug Facebook', style: TextStyle(fontSize: 12)),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -712,6 +820,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _obscure = true;
   bool _loading = false;
   bool _isGoogleSignUp = false;
+  bool _isFacebookSignUp = false;
 
   final List<String> _indianStates = [
     // States (28)
@@ -775,7 +884,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         hintText: 'Email or Phone',
                       ),
                     ),
-                    if (!_isGoogleSignUp) ...[
+                    if (!_isGoogleSignUp && !_isFacebookSignUp) ...[
                       const SizedBox(height: 16),
                       const Text('Password'),
                       const SizedBox(height: 8),
@@ -824,8 +933,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                         ),
                         onPressed: _loading ? null : () async {
-                          if (_isGoogleSignUp) {
-                            // Google Sign-Up flow
+                          if (_isGoogleSignUp || _isFacebookSignUp) {
                             if (_selectedState == null) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Please select your state')),
@@ -836,18 +944,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             setState(() => _loading = true);
 
                             try {
-                              final result = await ApiService.googleSignIn(
-                                _emailCtrl.text,
-                                _nameCtrl.text,
-                                'google_${_emailCtrl.text}',
-                                _selectedState!,
-                              );
+                              final result = _isFacebookSignUp
+                                ? await ApiService.facebookSignIn(
+                                    _emailCtrl.text,
+                                    _nameCtrl.text,
+                                    'fb_${_emailCtrl.text}',
+                                    _selectedState!,
+                                  )
+                                : await ApiService.googleSignIn(
+                                    _emailCtrl.text,
+                                    _nameCtrl.text,
+                                    'google_${_emailCtrl.text}',
+                                    _selectedState!,
+                                  );
                               
                               final prefs = await SharedPreferences.getInstance();
                               await prefs.setBool('isLoggedIn', true);
                               final user = result['user'];
-                              final userId = user['_id']?.toString() ?? user['id']?.toString() ?? '';
-                              await prefs.setString('userId', userId);
+                              await prefs.setString('userId', user['_id'].toString());
                               await prefs.setString('userName', user['name'].toString());
                               await prefs.setString('userEmail', user['email'].toString());
                               
@@ -856,7 +970,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             } catch (e) {
                               if (!mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+                                SnackBar(content: Text('Signup failed: $e')),
                               );
                             } finally {
                               if (mounted) setState(() => _loading = false);
@@ -937,6 +1051,70 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             Icon(Icons.g_mobiledata),
                             SizedBox(width: 8),
                             Text('Continue with Google'),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 48,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                        onPressed: () async {
+                          print('🔵 Facebook signup button pressed');
+                          
+                          try {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Connecting to Facebook...')),
+                            );
+                            
+                            final account = await FacebookAuthService.signIn();
+                            print('🔵 Facebook signup result: $account');
+                            
+                            if (account != null) {
+                              if (account.email.isEmpty) {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Facebook account has no email. Please use email signup.')),
+                                );
+                                return;
+                              }
+                              
+                              setState(() {
+                                _isFacebookSignUp = true;
+                                _nameCtrl.text = account.name;
+                                _emailCtrl.text = account.email;
+                              });
+                              
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Facebook connected! Please select your state.')),
+                              );
+                            } else {
+                              print('🔵 Facebook signup returned null');
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Facebook connection cancelled or failed')),
+                              );
+                            }
+                          } catch (e) {
+                            print('🔴 Facebook signup error: $e');
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Facebook connection error. Please try again.')),
+                            );
+                          }
+                        },
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.facebook, color: Colors.blue),
+                            SizedBox(width: 8),
+                            Text('Continue with Facebook'),
                           ],
                         ),
                       ),
