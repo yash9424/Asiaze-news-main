@@ -18,9 +18,23 @@ async function dbConnect() {
   }
 
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI).then((mongoose) => {
-      return { conn: mongoose, promise: null };
-    }) as any;
+    const opts = {
+      bufferCommands: false,
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    };
+    
+    cached.promise = mongoose.connect(MONGODB_URI, opts)
+      .then((mongoose) => {
+        console.log('✅ MongoDB connected successfully');
+        return { conn: mongoose, promise: null };
+      })
+      .catch((error) => {
+        console.error('❌ MongoDB connection error:', error);
+        cached.promise = null;
+        throw error;
+      }) as any;
   }
 
   cached.conn = await cached.promise;

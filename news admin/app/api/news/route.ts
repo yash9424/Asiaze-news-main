@@ -50,13 +50,16 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('🔵 Starting POST /api/news');
     await dbConnect();
+    console.log('🔵 DB connected');
     const data = await req.json();
-    console.log('Received data:', data);
+    console.log('🔵 Received data:', JSON.stringify(data, null, 2));
     
     // Convert tag names to tag IDs
     let tagIds = [];
     if (data.tags && Array.isArray(data.tags)) {
+      console.log('🔵 Processing tags:', data.tags);
       tagIds = await Promise.all(
         data.tags.map(async (tagName: string) => {
           let tag = await Tag.findOne({ name: tagName });
@@ -70,23 +73,48 @@ export async function POST(req: NextRequest) {
           return tag._id;
         })
       );
+      console.log('🔵 Tag IDs:', tagIds);
     }
     
-    const news = new News({
-      ...data,
+    // Validate required fields
+    if (!data.title || !data.category) {
+      console.error('❌ Missing required fields');
+      return createCorsErrorResponse('Title and category are required', 400);
+    }
+
+    console.log('🔵 Creating news document');
+    const newsData = {
+      title: data.title,
+      content: data.content || '',
+      summary: data.summary || '',
+      explanation: data.explanation || '',
+      image: data.image || '',
+      category: data.category,
       tags: tagIds,
+      status: data.status || 'draft',
+      languages: data.languages || [],
+      translations: data.translations || {},
+      source: data.source || '',
+      state: data.state || '',
+      publishedAt: data.publishedAt || null,
       updatedAt: new Date()
-    });
+    };
+    
+    const news = new News(newsData);
     
     news.markModified('translations');
+    console.log('🔵 Saving news...');
     await news.save();
     
-    console.log('Created news with languages:', news.languages);
-    console.log('Created news with translations:', news.translations);
+    console.log('✅ News created successfully');
+    console.log('Languages:', news.languages);
+    console.log('Translations:', news.translations);
 
     return createCorsResponse({ news }, { status: 201 });
   } catch (error: any) {
-    console.error('Error creating news:', error);
+    console.error('❌ Error creating news:', error);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Error name:', error.name);
     return createCorsErrorResponse(error.message || 'Failed to create news', 500);
   }
 }
