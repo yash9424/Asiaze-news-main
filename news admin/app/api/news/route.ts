@@ -41,7 +41,14 @@ export async function GET(req: NextRequest) {
       news = news.filter(n => n.state === userState || !n.state || n.state === '');
     }
 
-    return createCorsResponse({ news });
+    // Convert relative URLs to absolute URLs
+    const baseUrl = process.env.BASE_URL || 'https://asiaze.cloud';
+    const newsWithFullUrls = news.map(item => ({
+      ...item,
+      image: item.image?.startsWith('http') || item.image?.startsWith('data:') ? item.image : `${baseUrl}${item.image}`
+    }));
+
+    return createCorsResponse({ news: newsWithFullUrls });
   } catch (error: any) {
     console.error('Error fetching news:', error);
     return createCorsErrorResponse(error.message || 'Failed to fetch news', 500);

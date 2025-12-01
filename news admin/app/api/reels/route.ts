@@ -29,8 +29,16 @@ export async function GET(req: NextRequest) {
       .lean()
       .sort({ createdAt: -1 });
     
+    // Convert relative URLs to absolute URLs
+    const baseUrl = process.env.BASE_URL || 'https://asiaze.cloud';
+    const reelsWithFullUrls = reels.map(reel => ({
+      ...reel,
+      videoUrl: reel.videoUrl?.startsWith('http') ? reel.videoUrl : `${baseUrl}${reel.videoUrl}`,
+      thumbnail: reel.thumbnail?.startsWith('http') ? reel.thumbnail : (reel.thumbnail?.startsWith('data:') ? reel.thumbnail : `${baseUrl}${reel.thumbnail}`)
+    }));
+    
     console.log(`Found ${reels.length} reels`);
-    return createCorsResponse({ reels });
+    return createCorsResponse({ reels: reelsWithFullUrls });
   } catch (error: any) {
     console.error('Error fetching reels:', error);
     return createCorsErrorResponse(error.message || 'Failed to fetch reels', 500);
