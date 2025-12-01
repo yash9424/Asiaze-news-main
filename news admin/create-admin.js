@@ -1,25 +1,19 @@
-require('dotenv').config({ path: '.env' });
 const { MongoClient } = require('mongodb');
 const bcrypt = require('bcryptjs');
 
 async function createAdmin() {
-  // Read from .env file
-  const uri = process.env.MONGODB_URI;
-  
-  if (!uri) {
-    console.error('❌ MONGODB_URI not found in .env file');
-    process.exit(1);
-  }
+  // Use local MongoDB without authentication
+  const uri = 'mongodb://localhost:27017/asiaze_news';
   
   console.log('📡 Connecting to MongoDB...');
-  console.log('🔗 URI:', uri.replace(/:\/\/([^:]+):([^@]+)@/, '://$1:****@'));
+  console.log('🔗 URI:', uri);
   const client = new MongoClient(uri);
   
   try {
     await client.connect();
     console.log('✅ Connected to MongoDB');
     
-    const db = client.db();
+    const db = client.db('asiaze_news');
     
     // Check if admin exists
     const existing = await db.collection('adminusers').findOne({ email: 'admin@gmail.com' });
