@@ -77,14 +77,37 @@ export default function AddNewsPage() {
     }
   }
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      // Show preview immediately
       const reader = new FileReader()
       reader.onloadend = () => {
         setFormData(prev => ({ ...prev, image: reader.result as string }))
       }
       reader.readAsDataURL(file)
+
+      // Upload to server
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        })
+        
+        if (res.ok) {
+          const data = await res.json()
+          setFormData(prev => ({ ...prev, image: data.url }))
+        } else {
+          console.error('Upload failed')
+          alert('Failed to upload image')
+        }
+      } catch (error) {
+        console.error('Upload error:', error)
+        alert('Failed to upload image')
+      }
     }
   }
 
